@@ -19,7 +19,7 @@ RSS reader mobile app built with React Native and Expo, backed by Supabase.
 |-------|-----------|
 | Framework | React Native 0.76 + Expo 52 (TypeScript) |
 | Backend | Supabase (PostgreSQL + Auth) |
-| State | Zustand 5 (cross-component), React hooks (local) |
+| State | React hooks (local) |
 | Navigation | React Navigation 7 (native stack) |
 | Testing | Jest 29 + jest-expo + @testing-library/react-native |
 
@@ -34,7 +34,7 @@ src/
 │   ├── AuthScreen.tsx     # Login / sign-up
 │   ├── HomeScreen.tsx     # Feed overview + refresh
 │   ├── ArticleList.tsx    # Articles for a feed
-│   ├── ArticleDetail.tsx  # Full article view (WebView)
+│   ├── ArticleDetail.tsx  # Full article view (RenderHTML) with HTML sanitisation
 │   ├── AddFeed.tsx        # Subscribe to a new feed
 │   ├── Bookmarks.tsx      # Saved articles
 │   ├── FeedsList.tsx      # Manage subscriptions
@@ -42,8 +42,7 @@ src/
 ├── services/
 │   ├── articleService.ts  # Article/feed CRUD + shared Article type
 │   ├── auth.ts            # Auth helpers + session management
-│   ├── feedStore.ts       # Zustand store for shared article state
-│   ├── settingsService.ts # User settings CRUD
+│   ├── settingsService.ts # User settings CRUD (with numeric range validation)
 │   ├── supabase.ts        # Supabase client initialisation
 │   └── utils.ts           # Feed fetching, parsing, cleanup
 ├── navigation/
@@ -55,7 +54,7 @@ src/
 ├── __mocks__/             # Supabase mock with chainable query builder
 ├── assets/                # App icons and splash images
 ├── jest.setup.js          # Global test setup + mocks
-└── jset.config.ts         # Alternate Jest config (dotenv/config setup)
+└── jest.config.js         # Jest config (dotenv/config setup)
 ```
 
 ## Getting Started
@@ -99,13 +98,13 @@ npx expo start --go -c    # Start with cache clear
 
 | Screen | Description |
 |--------|-------------|
-| **AuthScreen** | Email/password login and sign-up with Supabase Auth |
+| **AuthScreen** | Email/password login and sign-up with Supabase Auth (email + password validation) |
 | **HomeScreen** | Feed overview with pull-to-refresh and navigation to all other screens |
 | **ArticleList** | Scrollable list of articles for a selected feed with search filtering |
-| **ArticleDetail** | Full article view rendered in a WebView with bookmark toggle |
+| **ArticleDetail** | Full article view with HTML sanitisation (dangerous tag blocklist), bookmark toggle, and link validation |
 | **AddFeed** | Subscribe to a new RSS feed by URL |
 | **Bookmarks** | View and manage bookmarked articles |
-| **FeedsList** | Manage feed subscriptions with delete; uses Zustand store (`services/feedStore.ts`) for shared state |
+| **FeedsList** | Manage feed subscriptions with rename and delete |
 | **Settings** | User preferences — dark mode, font size, line spacing, retention, max articles per feed |
 
 ## Database Schema
@@ -119,9 +118,10 @@ Three tables in Supabase PostgreSQL. All foreign keys use `ON DELETE CASCADE` �
 | `email` | TEXT | Unique, not null |
 | `dark_mode` | BOOLEAN | Default `false` |
 | `auto_theme` | BOOLEAN | Default `true` |
-| `font_size` | INTEGER | Default `12` |
+| `font_size` | INTEGER | Default `16` |
 | `line_spacing` | REAL | Default `1.5` |
 | `notifications` | BOOLEAN | Default `false` |
+| `max_articles_per_feed` | INTEGER | Default `50` |
 | `retention_days` | INTEGER | Default `30` |
 | `updated_at` | TIMESTAMP | Auto-set |
 
@@ -170,7 +170,7 @@ npm test -- --coverage         # Coverage report
 - Supabase is mocked globally via `jest.setup.js` → `__mocks__/supabase.ts` (chainable query builder)
 - Navigation hooks (`useNavigation`, `useFocusEffect`) are mocked per test
 - Use `act()` + `waitFor()` for async state updates in component tests
-- The alternate config `jset.config.ts` adds `dotenv/config` to setup files for env-dependent tests
+- `jest.config.js` adds `dotenv/config` to setup files for env-dependent tests
 
 ## Building
 

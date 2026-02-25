@@ -31,7 +31,7 @@ eas build --platform android   # Android build
 ### Tech Stack
 - **Framework:** React Native 0.76 + Expo 52 (TypeScript)
 - **Backend:** Supabase (PostgreSQL + Auth, supabase-js 2.49)
-- **State:** React hooks for local state (Zustand 5 installed but not yet in use)
+- **State:** React hooks for local state
 - **Navigation:** React Navigation 7 (native stack)
 - **Testing:** Jest 29 + jest-expo + @testing-library/react-native
 
@@ -68,4 +68,4 @@ Expo `EXPO_PUBLIC_` prefix required for app-accessible vars. Copy `.env.example`
 - Supabase is mocked globally via `jest.setup.js` → `__mocks__/supabase.ts`
 - Navigation hooks (`useNavigation`, `useFocusEffect`) are mocked per test
 - Use `act()` + `waitFor()` for async state updates in component tests
-- `jest.config.ts` uses `dotenv/config` in setupFiles for env-dependent tests
+- `jest.config.js` uses `dotenv/config` in setupFiles for env-dependent tests
