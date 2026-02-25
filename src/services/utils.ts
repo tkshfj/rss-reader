@@ -35,22 +35,17 @@ export const deleteOldArticles = async (userId: string) => {
         const cutoffISO = cutoffDate.toISOString();
 
         // Delete old, unbookmarked articles
-        const { data, error: deleteError } = await supabase
+        const { count, error: deleteError } = await supabase
             .from('articles')
-            .delete()
+            .delete({ count: 'exact' })
             .eq('user_id', userId)
             .lt('published', cutoffISO)
-            .eq('bookmarked', false)
-            .select('*');
+            .eq('bookmarked', false);
 
         if (deleteError) {
             console.error("Error deleting old articles:", deleteError.message);
         } else {
-            if (data) {
-                console.log(`Deleted ${data.length} old unbookmarked articles for user ${userId}`);
-            } else {
-                console.log(`No old unbookmarked articles were deleted for user ${userId}`);
-            }
+            console.log(`Deleted ${count ?? 0} old unbookmarked articles for user ${userId}`);
         }
     } catch (error) {
         console.error("Unexpected error deleting old articles:", error);

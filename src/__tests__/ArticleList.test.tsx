@@ -190,9 +190,17 @@ describe('ArticleList Component', () => {
       ['select', 'eq', 'order', 'limit', 'update', 'delete', 'insert'].forEach(method => {
         builder[method] = jest.fn(() => builder);
       });
-      builder.single = jest.fn(() => Promise.reject(new Error('Failed to fetch')));
-      builder.then = (resolve: any, reject?: any) =>
-        Promise.reject(new Error('Failed to fetch')).then(resolve, reject);
+      // single() resolves for users table (getMaxArticlesPerFeed) but rejects for articles
+      const errorResult = { data: null, error: { message: 'Failed to fetch' }, count: null };
+      if (table === 'users') {
+        builder.single = jest.fn(() => Promise.resolve({ data: { max_articles_per_feed: 50 }, error: null }));
+        builder.then = (resolve: any, reject?: any) =>
+          Promise.resolve({ data: { max_articles_per_feed: 50 }, error: null }).then(resolve, reject);
+      } else {
+        builder.single = jest.fn(() => Promise.resolve(errorResult));
+        builder.then = (resolve: any, reject?: any) =>
+          Promise.resolve(errorResult).then(resolve, reject);
+      }
       return builder;
     });
 

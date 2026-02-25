@@ -1,5 +1,5 @@
 // FeedsList.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, ActivityIndicator, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/StackNavigator';
@@ -19,7 +19,7 @@ type Feed = {
 // Define the props for the FeedsList component
 type FeedsListProps = {
     navigation: StackNavigationProp<RootStackParamList, 'FeedsList'>;
-    userId: string;
+    route: { params: { userId: string } };
 };
 
 // Fetch feeds from Supabase
@@ -59,7 +59,8 @@ const FeedItem = React.memo(({ feed, onPress }: { feed: Feed; onPress: (feed: Fe
     </TouchableOpacity>
 ));
 
-const FeedsList: React.FC<FeedsListProps> = ({ navigation, userId }) => {
+const FeedsList: React.FC<FeedsListProps> = ({ navigation, route }) => {
+    const userId = route.params.userId;
     const [feeds, setFeeds] = useState<Feed[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const { setArticles, lastFetchTime, updateLastFetchTime } = useFeedStore();
@@ -81,7 +82,7 @@ const FeedsList: React.FC<FeedsListProps> = ({ navigation, userId }) => {
         });
     }, [navigation]);
 
-    // Fetch new articles only when necessary
+    // Fetch articles, throttled to once per 10 minutes
     const fetchNewArticles = useCallback(async () => {
         const now = Date.now();
 
@@ -90,47 +91,27 @@ const FeedsList: React.FC<FeedsListProps> = ({ navigation, userId }) => {
             return;
         }
 
-        updateLastFetchTime(now); // Update last fetch time
+        updateLastFetchTime(now);
         const newArticles = await fetchArticlesFromSupabase(userId);
 
         if (newArticles.length > 0) {
             setArticles((prevArticles) => {
                 const uniqueArticles = new Map<string, Article>();
-
-                // Ensure uniqueness by `id`
                 [...newArticles, ...prevArticles].forEach(article => {
                     uniqueArticles.set(article.id, article);
                 });
-
                 return Array.from(uniqueArticles.values());
             });
         }
     }, [setArticles, userId, lastFetchTime, updateLastFetchTime]);
 
-    // Refresh feeds only when the screen is focused
+    // Refresh feeds and articles when the screen is focused
     useFocusEffect(
         useCallback(() => {
             fetchFeeds();
-        }, [fetchFeeds])
-    );
-
-    // Refresh articles every 10 minutes when the screen is focused
-    useFocusEffect(
-        useCallback(() => {
             fetchNewArticles();
-        }, [fetchNewArticles])
+        }, [fetchFeeds, fetchNewArticles])
     );
-
-    // Fetch articles when userId changes
-    useEffect(() => {
-        const fetchArticles = async () => {
-            const fetchedArticles = await fetchArticlesFromSupabase(userId);
-            setArticles(() => fetchedArticles);
-            updateLastFetchTime(Date.now());
-        };
-
-        fetchArticles();
-    }, [userId, setArticles, updateLastFetchTime]);
 
     return (
         <View style={styles.container}>

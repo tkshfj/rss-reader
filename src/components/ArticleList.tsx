@@ -4,7 +4,6 @@ import { View, Text, FlatList, TextInput, RefreshControl, TouchableOpacity, Imag
 import { RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/StackNavigator';
-import { supabase } from '../services/supabase';
 import { getRelativeTime } from '../services/utils';
 import {
     Article,
@@ -39,24 +38,13 @@ const ArticleList: React.FC<Props> = ({ route, navigation }) => {
     const [updatedTitle, setUpdatedTitle] = useState<string>(feedTitle);
     const rssFetchAttempted = useRef(false);
 
-    // Load articles from the database, optionally triggering an RSS refresh first
-    const loadArticles = useCallback(async (refreshFn?: () => Promise<void>) => {
+    // Load articles from the database
+    const loadArticles = useCallback(async () => {
         setLoading(true);
         try {
-            const user = await supabase.auth.getUser();
-            const userId = user.data?.user?.id || '';
             if (!userId) throw new Error('User not authenticated');
 
             const maxArticles = await getMaxArticlesPerFeed(userId);
-            const count = await getArticleCount(userId, feedId);
-
-            // Fetch RSS if no articles found (once only)
-            if (count === 0 && !rssFetchAttempted.current) {
-                rssFetchAttempted.current = true;
-                if (refreshFn) await refreshFn();
-                return;
-            }
-
             const formattedArticles = await fetchArticles(userId, feedId, maxArticles);
             setArticles(formattedArticles);
             setFilteredArticles(formattedArticles);
@@ -65,29 +53,44 @@ const ArticleList: React.FC<Props> = ({ route, navigation }) => {
         } finally {
             setLoading(false);
         }
-    }, [feedId]);
+    }, [feedId, userId]);
 
     // Refresh Feed — fetch RSS from source URLs and reload articles
     const refreshFeed = useCallback(async () => {
         setRefreshing(true);
-        rssFetchAttempted.current = false;
-
         try {
             const feedUrls = await getFeedUrls(feedId, userId);
             if (feedUrls.length === 0) return;
 
-            await Promise.allSettled(feedUrls.map(feed => fetchAndStoreRSS(feed.id, feed.url)));
+            await Promise.allSettled(feedUrls.map(feed => fetchAndStoreRSS(feed.id, feed.url, userId)));
             await loadArticles();
         } catch (error) {
             console.error('Feed Refresh Error:', error);
         } finally {
             setRefreshing(false);
         }
-    }, [feedId, loadArticles]);
+    }, [feedId, userId, loadArticles]);
 
+    // Initial load: fetch articles, and if empty, trigger a refresh
     useEffect(() => {
-        loadArticles(refreshFeed);
-    }, [loadArticles, refreshFeed]);
+        const init = async () => {
+            if (!userId) return;
+            try {
+                const count = await getArticleCount(userId, feedId);
+
+                if (count === 0 && !rssFetchAttempted.current) {
+                    rssFetchAttempted.current = true;
+                    await refreshFeed();
+                } else {
+                    await loadArticles();
+                }
+            } catch (error: any) {
+                console.error('Error loading articles:', error.message);
+                setLoading(false);
+            }
+        };
+        init();
+    }, [feedId, userId]);
 
     // Filter articles by search query
     const filterArticles = useCallback((query: string) => {

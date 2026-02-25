@@ -20,7 +20,10 @@ export const fetchBookmarks = async (userId: string | undefined): Promise<{ data
 
     const { data, error } = await supabase
         .from('articles')
-        .select('id, user_id, feed_id, title, link, summary, image, author, published, fetched_at')
+        .select(`
+            id, user_id, feed_id, title, link, summary, content, content_html, image, media_image,
+            author, published, identifier_type, bookmarked, fetched_at
+        `)
         .eq('user_id', userId)
         .eq('bookmarked', true)
         .order('fetched_at', { ascending: false });

@@ -1,6 +1,6 @@
 // AddFeed.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Keyboard, TextInput, Button, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, Keyboard, TextInput, Button, Alert, ActivityIndicator, StyleSheet } from 'react-native';
 import RSSParser from 'react-native-rss-parser';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -8,30 +8,32 @@ import { RootStackParamList } from '../navigation/StackNavigator';
 import { supabase } from '../services/supabase';
 import { getUserId } from "../services/auth";
 
+// Props for the AddFeedForm component
+type AddFeedFormProps = {
+    feedUrl: string;
+    setFeedUrl: (url: string) => void;
+    addingFeed: boolean;
+    handleAddFeed: () => void;
+    textInputRef: React.RefObject<TextInput>;
+};
+
 // Component for the form to add a new RSS feed
-const AddFeedForm = ({ feedUrl, setFeedUrl, addingFeed, handleAddFeed, textInputRef }: any) => (
-    <View style={{ padding: 10, backgroundColor: '#fff' }}>
-        <Text style={{ fontSize: 20, fontWeight: "bold", marginTop: 15 }}>Add a New Feed</Text>
+const AddFeedForm = ({ feedUrl, setFeedUrl, addingFeed, handleAddFeed, textInputRef }: AddFeedFormProps) => (
+    <View style={styles.formContainer}>
+        <Text style={styles.heading}>Add a New Feed</Text>
         <TextInput
             ref={textInputRef}
             autoCorrect={false}
             autoCapitalize="none"
             keyboardType="url"
             returnKeyType="done"
-            style={{
-                height: 40,
-                borderColor: "gray",
-                borderWidth: 1,
-                borderRadius: 5,
-                paddingLeft: 10,
-                marginTop: 10,
-            }}
+            style={styles.input}
             placeholder="Enter RSS Feed URL"
             value={feedUrl}
             onChangeText={setFeedUrl}
         />
         {addingFeed ? (
-            <ActivityIndicator size="large" color="#007AFF" style={{ marginTop: 10 }} />
+            <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
         ) : (
             <Button title="Add Feed" onPress={handleAddFeed} testID="add-feed-button" />
         )}
@@ -98,7 +100,7 @@ const AddFeed = () => {
             return { success: true, data: data?.[0] };
         } catch (err) {
             console.error("Error adding feed:", err);
-            return { success: false, message: err.message };
+            return { success: false, message: err instanceof Error ? err.message : "An unknown error occurred" };
         }
     };
 
@@ -108,8 +110,14 @@ const AddFeed = () => {
             Alert.alert("Error", "Please enter a valid RSS URL.");
             return;
         }
-        if (!feedUrl.startsWith('http://') && !feedUrl.startsWith('https://')) {
-            Alert.alert("Error", "URL must start with http:// or https://.");
+        try {
+            const parsed = new URL(feedUrl.trim());
+            if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+                Alert.alert("Error", "URL must use http:// or https://.");
+                return;
+            }
+        } catch {
+            Alert.alert("Error", "Please enter a valid URL.");
             return;
         }
         Keyboard.dismiss();
@@ -138,10 +146,37 @@ const AddFeed = () => {
     };
 
     return (
-        <View style={{ flex: 1, backgroundColor: '#fff' }}>
+        <View style={styles.container}>
             <AddFeedForm feedUrl={feedUrl} setFeedUrl={setFeedUrl} addingFeed={addingFeed} handleAddFeed={handleAddFeed} textInputRef={textInputRef} />
         </View>
     );
 };
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#fff',
+    },
+    formContainer: {
+        padding: 10,
+        backgroundColor: '#fff',
+    },
+    heading: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginTop: 15,
+    },
+    input: {
+        height: 40,
+        borderColor: 'gray',
+        borderWidth: 1,
+        borderRadius: 5,
+        paddingLeft: 10,
+        marginTop: 10,
+    },
+    loader: {
+        marginTop: 10,
+    },
+});
 
 export default AddFeed;

@@ -68,4 +68,4 @@ Expo `EXPO_PUBLIC_` prefix required for app-accessible vars. Copy `.env.example`
 - Supabase is mocked globally via `jest.setup.js` → `__mocks__/supabase.ts`
 - Navigation hooks (`useNavigation`, `useFocusEffect`) are mocked per test
 - Use `act()` + `waitFor()` for async state updates in component tests
-- Note: `jset.config.ts` (filename typo, kept for compatibility) uses `dotenv/config` in setupFiles for env-dependent tests
+- `jest.config.ts` uses `dotenv/config` in setupFiles for env-dependent tests

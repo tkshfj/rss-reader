@@ -1,20 +1,22 @@
 // HomeScreen.tsx
 import React, { useState, useCallback } from 'react';
-import { SafeAreaView, ScrollView, View, Text, TouchableOpacity, Button, ActivityIndicator, StyleSheet } from 'react-native';
+import { SafeAreaView, ScrollView, View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { useNavigation } from '@react-navigation/native';
+import { RouteProp } from '@react-navigation/native';
 import { Cell, TableView } from "react-native-tableview-simple";
 import { RootStackParamList } from '../navigation/StackNavigator';
 import { fetchFeeds } from '../services/utils';
-import { supabase } from '../services/supabase';
 
 // Define the props for the HomeScreen component
-type Props = StackNavigationProp<RootStackParamList, "Home">;
+type Props = {
+  navigation: StackNavigationProp<RootStackParamList, "Home">;
+  route: RouteProp<RootStackParamList, "Home">;
+};
 
 // HomeScreen component to display the list of feeds
-const HomeScreen: React.FC<Props> = () => {
-  const navigation = useNavigation<Props>();
+const HomeScreen: React.FC<Props> = ({ navigation, route }) => {
+  const userId = route.params.userId;
 
   const [expandedSections, setExpandedSections] = useState({
     Home: true,
@@ -24,33 +26,25 @@ const HomeScreen: React.FC<Props> = () => {
 
   const [feeds, setFeeds] = useState<{ id: string; title: string }[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [userId, setUserId] = useState<string | null>(null);
-
-  // Fetch authenticated user ID and feeds
-  const fetchUserAndFeeds = async () => {
-    setLoading(true);
-    try {
-      // Get user from Supabase auth
-      const { data, error } = await supabase.auth.getUser();
-      if (error || !data?.user) throw new Error("User not found");
-      const fetchedUserId = data.user.id;
-      setUserId(fetchedUserId);
-
-      // Fetch user feeds only after userId is obtained
-      const fetchedFeeds = await fetchFeeds(fetchedUserId);
-      setFeeds(fetchedFeeds);
-    } catch (err) {
-      console.error("Error fetching user or feeds:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Refresh HomeScreen when returning from other screens
   useFocusEffect(
     useCallback(() => {
-      fetchUserAndFeeds(); // Ensures user and feeds are fetched together
-    }, [])
+      let cancelled = false;
+      const loadFeeds = async () => {
+        setLoading(true);
+        try {
+          const fetchedFeeds = await fetchFeeds(userId);
+          if (!cancelled) setFeeds(fetchedFeeds);
+        } catch (err) {
+          console.error("Error fetching feeds:", err);
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+      };
+      loadFeeds();
+      return () => { cancelled = true; };
+    }, [userId])
   );
 
   // Toggle section visibility
@@ -62,10 +56,10 @@ const HomeScreen: React.FC<Props> = () => {
     <SafeAreaView style={styles.container}>
       {/* Header with Buttons */}
       <View style={styles.headerContainer}>
-        <TouchableOpacity style={styles.tinyButton} onPress={() => userId && navigation.navigate('Settings', { userId })} disabled={!userId}>
+        <TouchableOpacity style={styles.tinyButton} onPress={() => navigation.navigate('Settings', { userId })}>
           <Text style={styles.tinyButtonText}>Settings</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.tinyButton} onPress={() => userId && navigation.navigate('AddFeed', { userId })} disabled={!userId}>
+        <TouchableOpacity style={styles.tinyButton} onPress={() => navigation.navigate('AddFeed', { userId })}>
           <Text style={styles.tinyButtonText}>+</Text>
         </TouchableOpacity>
       </View>
@@ -82,7 +76,7 @@ const HomeScreen: React.FC<Props> = () => {
               cellStyle="Basic" 
               title="All Feeds" 
               accessory="DisclosureIndicator" 
-              onPress={() => userId && navigation.navigate('ArticleList', { feedId: 'all', feedTitle: 'All Feeds', userId })}
+              onPress={() => navigation.navigate('ArticleList', { feedId: 'all', feedTitle: 'All Feeds', userId })}
               contentContainerStyle={styles.listItem} 
             />
           )}
@@ -96,7 +90,7 @@ const HomeScreen: React.FC<Props> = () => {
               cellStyle="Basic" 
               title="Bookmarks" 
               accessory="DisclosureIndicator" 
-              onPress={() => userId && navigation.navigate('Bookmarks', { userId })}
+              onPress={() => navigation.navigate('Bookmarks', { userId })}
               contentContainerStyle={styles.listItem} 
             />
           )}
@@ -107,9 +101,9 @@ const HomeScreen: React.FC<Props> = () => {
           </TouchableOpacity>
           {expandedSections.Feeds && (
             loading ? (
-              <ActivityIndicator testID={'loading-indicator'} size="small" color="#0000ff" style={{ marginVertical: 10 }} />
+              <ActivityIndicator testID={'loading-indicator'} size="small" color="#0000ff" style={styles.loadingIndicator} />
             ) : feeds.length === 0 ? (
-              <Text style={{ padding: 10, textAlign: 'center' }}>No feeds available</Text>
+              <Text style={styles.emptyMessage}>No feeds available</Text>
             ) : (
               feeds.map((feed) => (
                 <Cell 
@@ -117,7 +111,7 @@ const HomeScreen: React.FC<Props> = () => {
                   cellStyle="Basic" 
                   title={feed.title} 
                   accessory="DisclosureIndicator" 
-                  onPress={() => userId && navigation.navigate('ArticleList', { feedId: feed.id, feedTitle: feed.title, userId })}
+                  onPress={() => navigation.navigate('ArticleList', { feedId: feed.id, feedTitle: feed.title, userId })}
                   contentContainerStyle={styles.listItem} 
                 />
               ))
@@ -168,6 +162,13 @@ const styles = StyleSheet.create({
   sectionHeaderText: {
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  loadingIndicator: {
+    marginVertical: 10,
+  },
+  emptyMessage: {
+    padding: 10,
+    textAlign: 'center',
   },
 });
 

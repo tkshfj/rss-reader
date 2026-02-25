@@ -62,24 +62,3 @@ jest.mock('react-native/Libraries/PushNotificationIOS/PushNotificationIOS', () =
 
 
 
-// import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock';
-// import 'react-native-gesture-handler/jestSetup';
-// // Mock AsyncStorage
-// jest.mock('@react-native-async-storage/async-storage', () => mockAsyncStorage);
-// jest.mock("@supabase/supabase-js", () => require("./__mocks__/supabase"));
-// jest.mock('./services/supabase', () => require('./__mocks__/supabase'));
-
-// import 'react-native-gesture-handler/jestSetup';
-
-// jest.mock('react-native/Libraries/Utilities/Appearance', () => ({
-//   useColorScheme: jest.fn(() => 'light'),
-// }));
-
-// jest.mock('react-native/Libraries/Utilities/SettingsManager', () => ({
-//   SettingsManager: {
-//     settings: {
-//       AppleLocale: 'en_US', // Simulate an iOS locale
-//       AppleLanguages: ['en'],
-//     },
-//   },
-// }));

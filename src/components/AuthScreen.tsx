@@ -1,6 +1,6 @@
 // AuthScreen.tsx
 import React, { useState } from "react";
-import { View, Text, TextInput, Button, Alert } from "react-native";
+import { View, Text, TextInput, Button, Alert, StyleSheet } from "react-native";
 import { signUp, signIn, checkUserExists } from "../services/auth";
 
 export default function AuthScreen() {
@@ -32,12 +32,23 @@ export default function AuthScreen() {
   };
 
   return (
-    <View style={{ padding: 20 }}>
+    <View style={styles.container}>
       <Text>Email:</Text>
-      <TextInput value={email} onChangeText={setEmail} placeholder="Enter your email" style={{ borderWidth: 1, padding: 8, marginBottom: 10 }} />
+      <TextInput value={email} onChangeText={setEmail} placeholder="Enter your email" style={styles.input} />
       <Text>Password:</Text>
-      <TextInput value={password} onChangeText={setPassword} placeholder="Enter your password" secureTextEntry style={{ borderWidth: 1, padding: 8, marginBottom: 10 }} />
+      <TextInput value={password} onChangeText={setPassword} placeholder="Enter your password" secureTextEntry style={styles.input} />
       <Button title="Sign Up" onPress={handleAuth} />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    padding: 20,
+  },
+  input: {
+    borderWidth: 1,
+    padding: 8,
+    marginBottom: 10,
+  },
+});

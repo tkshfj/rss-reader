@@ -1,6 +1,6 @@
 // Settings.tsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, Button, Alert } from 'react-native';
+import { View, Text, Button, Alert, StyleSheet } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { StackScreenProps } from '@react-navigation/stack';
 import { deleteOldArticles } from '../services/utils';
@@ -60,8 +60,8 @@ const Settings: React.FC<Props> = ({ route }) => {
     }, [userId]);
 
     return (
-        <View style={{ flex: 1, padding: 20 }}>
-            <Text style={{ fontSize: 20, fontWeight: 'bold' }}>User Settings</Text>
+        <View style={styles.container}>
+            <Text style={styles.heading}>User Settings</Text>
 
             <SettingsItem label={`Max Articles per Feed: ${settings.max_articles_per_feed}`}>
                 <Slider
@@ -85,10 +85,10 @@ const Settings: React.FC<Props> = ({ route }) => {
 
             <Button title="Save Settings" onPress={saveSettings} />
 
-            <View style={{ marginTop: 20 }}>
+            <View style={styles.buttonSpacing}>
                 <Button title="Delete Old Articles Now" color="red" onPress={handleManualCleanup} />
             </View>
-            <View style={{ marginTop: 20 }}>
+            <View style={styles.buttonSpacing}>
                 <Button title="Sign Out" onPress={signOut} />
             </View>
         </View>
@@ -97,10 +97,27 @@ const Settings: React.FC<Props> = ({ route }) => {
 
 // Component for rendering a settings item
 const SettingsItem: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-    <View style={{ marginVertical: 15 }}>
+    <View style={styles.settingsItem}>
         <Text>{label}</Text>
         {children}
     </View>
 );
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        padding: 20,
+    },
+    heading: {
+        fontSize: 20,
+        fontWeight: 'bold',
+    },
+    settingsItem: {
+        marginVertical: 15,
+    },
+    buttonSpacing: {
+        marginTop: 20,
+    },
+});
 
 export default Settings;

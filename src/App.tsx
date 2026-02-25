@@ -27,7 +27,7 @@ export default function App() {
     loadUserId();
 
     // Listen for authentication state changes
-    const unsubscribe = onAuthStateChange((authUser) => {
+    const { data: { subscription } } = onAuthStateChange((authUser) => {
       if (authUser) {
         setUserId(authUser.id);
       } else {
@@ -36,7 +36,7 @@ export default function App() {
     });
 
     // Clean up the subscription on unmount
-    return () => unsubscribe.data?.subscription?.unsubscribe?.();
+    return () => subscription.unsubscribe();
   }, []);
 
   return (

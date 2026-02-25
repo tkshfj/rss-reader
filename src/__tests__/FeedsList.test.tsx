@@ -72,7 +72,7 @@ describe('FeedsList Component', () => {
     test('renders loading indicator initially', async () => {
         const { getByTestId } = render(
             <NavigationContainer>
-                <FeedsList navigation={mockNavigation} userId={mockUserId} />
+                <FeedsList navigation={mockNavigation} route={{ params: { userId: mockUserId } }} />
             </NavigationContainer>
         );
         expect(getByTestId('loading-indicator')).toBeTruthy();
@@ -87,7 +87,7 @@ describe('FeedsList Component', () => {
 
         const { getByText, queryByTestId } = render(
             <NavigationContainer>
-                <FeedsList navigation={mockNavigation} userId={mockUserId} />
+                <FeedsList navigation={mockNavigation} route={{ params: { userId: mockUserId } }} />
             </NavigationContainer>
         );
 
@@ -110,7 +110,7 @@ describe('FeedsList Component', () => {
 
         const { getByText, queryByTestId } = render(
             <NavigationContainer>
-                <FeedsList navigation={mockNavigation} userId={mockUserId} />
+                <FeedsList navigation={mockNavigation} route={{ params: { userId: mockUserId } }} />
             </NavigationContainer>
         );
 
@@ -130,7 +130,7 @@ describe('FeedsList Component', () => {
 
         const { getByText } = render(
             <NavigationContainer>
-                <FeedsList navigation={mockNavigation} userId={mockUserId} />
+                <FeedsList navigation={mockNavigation} route={{ params: { userId: mockUserId } }} />
             </NavigationContainer>
         );
 
@@ -164,7 +164,7 @@ describe('FeedsList Component', () => {
     
         const { getByText, queryByTestId } = render(
             <NavigationContainer>
-                <FeedsList navigation={mockNavigation} userId={mockUserId} />
+                <FeedsList navigation={mockNavigation} route={{ params: { userId: mockUserId } }} />
             </NavigationContainer>
         );
     
@@ -211,7 +211,7 @@ describe('FeedsList Component', () => {
 
         render(
             <NavigationContainer>
-                <FeedsList navigation={mockNavigation} userId={mockUserId} />
+                <FeedsList navigation={mockNavigation} route={{ params: { userId: mockUserId } }} />
             </NavigationContainer>
         );
 

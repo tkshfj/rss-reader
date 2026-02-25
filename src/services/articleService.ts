@@ -113,9 +113,7 @@ export const getFeedUrls = async (feedId: string, userId: string): Promise<{ id:
     return data ? [data] : [];
 };
 
-export const fetchAndStoreRSS = async (feedId: string, feedUrl: string): Promise<void> => {
-    const user = await supabase.auth.getUser();
-    const userId = user.data?.user?.id || '';
+export const fetchAndStoreRSS = async (feedId: string, feedUrl: string, userId: string): Promise<void> => {
     if (!userId) return;
 
     const response = await fetch(feedUrl);

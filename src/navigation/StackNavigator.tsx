@@ -10,6 +10,7 @@ import ArticleDetail from '../components/ArticleDetail';
 import Bookmarks from '../components/Bookmarks';
 import FeedsList from '../components/FeedsList';
 import Settings from '../components/Settings';
+import { Article } from '../services/articleService';
 
 // Define Navigation Props
 export type RootStackParamList = {
@@ -17,7 +18,7 @@ export type RootStackParamList = {
   Settings: { userId: string };
   AddFeed: { userId: string };
   ArticleList: { feedId: string; feedTitle: string; userId: string };
-  ArticleDetail: { article: any; userId: string };
+  ArticleDetail: { article: Article; userId: string };
   Bookmarks: { userId: string };
   FeedsList: { userId: string };
   SignUp: { email?: string };
