@@ -20,6 +20,11 @@ node_modules/
 .DS_Store
 *.pem
 
+# coursework related
+/instructions/
+/report/
+/legacy/
+
 # debug
 npm-debug.log*
 yarn-debug.log*
