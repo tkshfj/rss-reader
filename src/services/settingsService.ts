@@ -68,6 +68,17 @@ export const updateUserSettings = async (userId: string, newSettings: Partial<Us
             }
         }
 
+        // Validate numeric ranges
+        if (typeof updates.font_size === 'number') {
+            updates.font_size = Math.max(8, Math.min(48, updates.font_size));
+        }
+        if (typeof updates.max_articles_per_feed === 'number') {
+            updates.max_articles_per_feed = Math.max(10, Math.min(200, updates.max_articles_per_feed));
+        }
+        if (typeof updates.retention_days === 'number') {
+            updates.retention_days = Math.max(0, Math.min(365, updates.retention_days));
+        }
+
         const { error } = await supabase
             .from('users')
             .update(updates)

@@ -39,10 +39,13 @@ const Settings: React.FC<Props> = ({ route }) => {
         setSettings((prev) => ({ ...prev, [key]: value }));
     };
 
-    // Save settings to the database
+    // Save settings to the database (only send UI-editable fields)
     const saveSettings = useCallback(async () => {
         try {
-            await updateUserSettings(userId, settings);
+            await updateUserSettings(userId, {
+                max_articles_per_feed: settings.max_articles_per_feed,
+                retention_days: settings.retention_days,
+            });
             Alert.alert("Settings Saved", "Your preferences have been updated.");
         } catch (error) {
             Alert.alert("Error", "Failed to update settings.");
@@ -83,7 +86,7 @@ const Settings: React.FC<Props> = ({ route }) => {
                 />
             </SettingsItem>
 
-            <Button title="Save Settings" onPress={saveSettings} />
+            <Button title="Save Settings" onPress={saveSettings} disabled={loading} />
 
             <View style={styles.buttonSpacing}>
                 <Button title="Delete Old Articles Now" color="red" onPress={handleManualCleanup} />

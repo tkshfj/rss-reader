@@ -31,7 +31,7 @@ eas build --platform android   # Android build
 ### Tech Stack
 - **Framework:** React Native 0.76 + Expo 52 (TypeScript)
 - **Backend:** Supabase (PostgreSQL + Auth, supabase-js 2.49)
-- **State:** Zustand 5 for cross-component state, React hooks for local state
+- **State:** React hooks for local state (Zustand 5 installed but not yet in use)
 - **Navigation:** React Navigation 7 (native stack)
 - **Testing:** Jest 29 + jest-expo + @testing-library/react-native
 
@@ -43,13 +43,13 @@ App.tsx → auth check (AsyncStorage + Supabase listener) → StackNavigator
       HomeScreen → ArticleList → ArticleDetail
                 → AddFeed
                 → Bookmarks
-                → FeedsList (uses useFeedStore Zustand store for shared article state)
+                → FeedsList
                 → Settings
 ```
 
 ### Key Directories (src/)
 - `components/` — All screen components (HomeScreen, ArticleList, etc.)
-- `services/` — `auth.ts` (auth + session), `supabase.ts` (client init), `articleService.ts` (article/feed CRUD), `feedStore.ts` (Zustand store), `settingsService.ts` (user settings CRUD), `utils.ts` (feed fetching, cleanup)
+- `services/` — `auth.ts` (auth + session), `supabase.ts` (client init), `articleService.ts` (article/feed CRUD), `settingsService.ts` (user settings CRUD), `utils.ts` (feed fetching, cleanup)
 - `navigation/` — `StackNavigator.tsx` with typed `RootStackParamList`
 - `database/` — SQL schema files (schema.sql for SQLite reference, schema-supabase.sql for production)
 - `__tests__/` — Jest tests mirroring component names

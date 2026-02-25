@@ -5,6 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/StackNavigator';
 import { Article, fetchBookmarkedArticles } from '../services/articleService';
+import { getRelativeTime } from '../services/utils';
 
 // Define the props for the Bookmarks component
 type BookmarksProps = {
@@ -64,8 +65,8 @@ const Bookmarks: React.FC<BookmarksProps> = ({ navigation, route }) => {
                     data={articles}
                     keyExtractor={(item) => item.id}
                     renderItem={({ item }) => (
-                        <TouchableOpacity 
-                            onPress={() => navigation.navigate('ArticleDetail', { article: item, userId })}
+                        <TouchableOpacity
+                            onPress={() => navigation.navigate('ArticleDetail', { articleId: item.id, userId })}
                             style={styles.articleItem}
                         >
                             {item.image && <Image source={{ uri: item.image }} style={styles.articleImage} />}
@@ -73,7 +74,7 @@ const Bookmarks: React.FC<BookmarksProps> = ({ navigation, route }) => {
                                 <Text style={styles.articleTitle}>{item.title}</Text>
                                 {item.summary && <Text style={styles.articleSummary}>{item.summary}</Text>}
                                 {item.author && <Text style={styles.articleAuthor}>By {item.author}</Text>}
-                                <Text style={styles.articleDate}>{new Date(item.fetched_at).toLocaleString()}</Text>
+                                <Text style={styles.articleDate}>{getRelativeTime(item.fetched_at)}</Text>
                             </View>
                         </TouchableOpacity>
                     )}

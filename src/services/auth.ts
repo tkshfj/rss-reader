@@ -82,7 +82,10 @@ async function syncUserIdWithUsersTable(authUserId: string, email: string) {
       // Cannot safely update the PK because foreign keys (feeds, articles)
       // reference users(id) with ON DELETE CASCADE but no ON UPDATE CASCADE.
       // Delete the stale row and re-insert so cascading deletes clean up orphans.
-      console.warn(`Replacing stale user record: ${existingUser.id} -> ${authUserId}`);
+      console.warn(
+        `User ID mismatch for ${email}: public.users has ${existingUser.id}, auth has ${authUserId}. ` +
+        `Replacing stale record. Associated feeds and articles will be cascade-deleted.`
+      );
 
       const { error: deleteError } = await supabase
         .from("users")
@@ -101,7 +104,7 @@ async function syncUserIdWithUsersTable(authUserId: string, email: string) {
 }
 
 // Insert user only if they are not already in the users table
-export async function insertUserIfNotExists(userId: string, email: string) {
+async function insertUserIfNotExists(userId: string, email: string) {
   try {
     const { data, error } = await supabase
       .from("users")

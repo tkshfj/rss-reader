@@ -28,7 +28,7 @@ export const deleteOldArticles = async (userId: string) => {
             .from('articles')
             .delete({ count: 'exact' })
             .eq('user_id', userId)
-            .lt('published', cutoffISO)
+            .or(`published.lt.${cutoffISO},published.is.null`)
             .eq('bookmarked', false);
 
         if (deleteError) {

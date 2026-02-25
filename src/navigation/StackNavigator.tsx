@@ -10,15 +10,13 @@ import ArticleDetail from '../components/ArticleDetail';
 import Bookmarks from '../components/Bookmarks';
 import FeedsList from '../components/FeedsList';
 import Settings from '../components/Settings';
-import { Article } from '../services/articleService';
-
 // Define Navigation Props
 export type RootStackParamList = {
   Home: { userId: string };
   Settings: { userId: string };
   AddFeed: { userId: string };
   ArticleList: { feedId: string; feedTitle: string; userId: string };
-  ArticleDetail: { article: Article; userId: string };
+  ArticleDetail: { articleId: string; userId: string };
   Bookmarks: { userId: string };
   FeedsList: { userId: string };
   SignUp: { email?: string };
@@ -28,7 +26,7 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 // StackNavigator component to handle navigation
-export const StackNavigator = ({ userId }: { userId?: string }) => {
+export const StackNavigator = ({ userId }: { userId: string | null }) => {
   return (
     <Stack.Navigator id={undefined}>
       {userId ? (

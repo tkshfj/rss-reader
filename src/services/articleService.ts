@@ -35,7 +35,9 @@ export type Article = {
 export const extractImageFromContent = (content: string | null): string | null => {
     if (!content) return null;
     const match = content.match(/<img[^>]+src=["']([^"']+)["']/);
-    return match ? match[1] : null;
+    if (!match) return null;
+    const url = match[1];
+    return /^https?:\/\//i.test(url) ? url : null;
 };
 
 export const extractMediaImage = (enclosures: { url?: string; type?: string }[]): string | null => {
@@ -63,7 +65,7 @@ export const getMaxArticlesPerFeed = async (userId: string): Promise<number> => 
         .single();
 
     if (error) throw new Error(error.message);
-    return data?.max_articles_per_feed || 50;
+    return data?.max_articles_per_feed ?? 50;
 };
 
 export const getArticleCount = async (userId: string, feedId: string): Promise<number> => {
@@ -76,7 +78,7 @@ export const getArticleCount = async (userId: string, feedId: string): Promise<n
 
     const { count, error } = await countQuery;
     if (error) throw new Error(error.message);
-    return count || 0;
+    return count ?? 0;
 };
 
 export const fetchArticles = async (
@@ -100,10 +102,31 @@ export const fetchArticles = async (
     const { data, error } = await query;
     if (error) throw new Error(error.message);
 
-    return (data || []).map(article => ({
-        ...article,
-        feed_title: article.feeds?.title ?? null,
-    }));
+    return (data || []).map(({ feeds: feedRelation, ...rest }) => ({
+        ...rest,
+        feed_title: Array.isArray(feedRelation) ? feedRelation[0]?.title ?? null : feedRelation?.title ?? null,
+    })) as Article[];
+};
+
+export const fetchArticleById = async (articleId: string, userId: string): Promise<Article | null> => {
+    const { data, error } = await supabase
+        .from('articles')
+        .select(`
+            id, user_id, feed_id, title, summary, content, content_html, link, image, media_image,
+            author, published, identifier_type, bookmarked, fetched_at,
+            feeds(title)
+        `)
+        .eq('id', articleId)
+        .eq('user_id', userId)
+        .single();
+
+    if (error) throw new Error(error.message);
+    if (!data) return null;
+    const { feeds: feedRelation, ...rest } = data;
+    return {
+        ...rest,
+        feed_title: Array.isArray(feedRelation) ? feedRelation[0]?.title ?? null : feedRelation?.title ?? null,
+    } as Article;
 };
 
 export const getFeedUrls = async (feedId: string, userId: string): Promise<{ id: string; url: string }[]> => {
@@ -129,7 +152,10 @@ export const fetchAndStoreRSS = async (feedId: string, feedUrl: string, userId: 
     } finally {
         clearTimeout(timeoutId);
     }
-    if (!response.ok) return;
+    if (!response.ok) {
+        console.error(`RSS fetch failed for ${feedUrl}: HTTP ${response.status}`);
+        return;
+    }
 
     const text = await response.text();
     const feed = await Parser.parse(text);
@@ -140,7 +166,10 @@ export const fetchAndStoreRSS = async (feedId: string, feedUrl: string, userId: 
         .eq('feed_id', feedId)
         .eq('user_id', userId);
 
-    if (fetchError) return;
+    if (fetchError) {
+        console.error(`Error fetching existing articles for feed ${feedId}:`, fetchError.message);
+        return;
+    }
 
     const existingLinks = new Set(existingArticles.map(article => article.link));
 
@@ -205,22 +234,24 @@ export const deleteFeed = async (feedId: string, userId: string): Promise<boolea
 
 // Bookmark operations
 
-export const getBookmarkStatus = async (articleId: string): Promise<boolean> => {
+export const getBookmarkStatus = async (articleId: string, userId: string): Promise<boolean> => {
     const { data, error } = await supabase
         .from('articles')
         .select('bookmarked')
         .eq('id', articleId)
+        .eq('user_id', userId)
         .single();
 
     if (error) throw new Error(error.message);
     return data?.bookmarked ?? false;
 };
 
-export const setBookmarkStatus = async (articleId: string, bookmarked: boolean): Promise<void> => {
+export const setBookmarkStatus = async (articleId: string, userId: string, bookmarked: boolean): Promise<void> => {
     const { error } = await supabase
         .from('articles')
         .update({ bookmarked })
-        .eq('id', articleId);
+        .eq('id', articleId)
+        .eq('user_id', userId);
 
     if (error) throw new Error(error.message);
 };
@@ -231,29 +262,19 @@ export const fetchBookmarkedArticles = async (userId: string): Promise<Article[]
         .from('articles')
         .select(`
             id, user_id, feed_id, title, link, summary, content, content_html, image, media_image,
-            author, published, identifier_type, bookmarked, fetched_at
+            author, published, identifier_type, bookmarked, fetched_at,
+            feeds(title)
         `)
         .eq('user_id', userId)
         .eq('bookmarked', true)
-        .order('fetched_at', { ascending: false });
+        .order('fetched_at', { ascending: false })
+        .limit(200);
 
     if (error) throw new Error(error.message);
-    return data || [];
-};
-
-// Fetch all articles for a user (full fields, for Zustand store)
-export const fetchAllArticles = async (userId: string): Promise<Article[]> => {
-    const { data, error } = await supabase
-        .from('articles')
-        .select(`
-            id, user_id, feed_id, title, link, summary, content, content_html, image, media_image,
-            author, published, identifier_type, bookmarked, fetched_at
-        `)
-        .eq('user_id', userId)
-        .order('published', { ascending: false });
-
-    if (error) throw new Error(error.message);
-    return data || [];
+    return (data || []).map(({ feeds: feedRelation, ...rest }) => ({
+        ...rest,
+        feed_title: Array.isArray(feedRelation) ? feedRelation[0]?.title ?? null : feedRelation?.title ?? null,
+    })) as Article[];
 };
 
 // Fetch all feeds for a user (full details)
@@ -285,7 +306,7 @@ export const addFeed = async (
     userId: string,
     title: string,
     url: string,
-): Promise<{ success: boolean; data?: any; message?: string }> => {
+): Promise<{ success: boolean; data?: Feed; message?: string }> => {
     try {
         const exists = await checkFeedExists(userId, url);
         if (exists) return { success: false, message: "This feed is already added." };

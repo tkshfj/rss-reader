@@ -51,8 +51,8 @@ const ArticleList: React.FC<Props> = ({ route, navigation }) => {
             const formattedArticles = await fetchArticles(userId, feedId, maxArticlesRef.current);
             setArticles(formattedArticles);
             setFilteredArticles(formattedArticles);
-        } catch (error: any) {
-            console.error('Error loading articles:', error.message);
+        } catch (error) {
+            console.error('Error loading articles:', error instanceof Error ? error.message : error);
         } finally {
             setLoading(false);
         }
@@ -76,6 +76,7 @@ const ArticleList: React.FC<Props> = ({ route, navigation }) => {
 
     // Initial load: fetch articles, and if empty, trigger a refresh
     useEffect(() => {
+        let cancelled = false;
         const init = async () => {
             if (!userId) return;
             try {
@@ -87,13 +88,14 @@ const ArticleList: React.FC<Props> = ({ route, navigation }) => {
                 } else {
                     await loadArticles();
                 }
-            } catch (error: any) {
-                console.error('Error loading articles:', error.message);
-                setLoading(false);
+            } catch (error) {
+                console.error('Error loading articles:', error instanceof Error ? error.message : error);
+                if (!cancelled) setLoading(false);
             }
         };
         init();
-    }, [feedId, userId]);
+        return () => { cancelled = true; };
+    }, [feedId, userId, refreshFeed, loadArticles]);
 
     // Re-apply search filter when articles change (e.g. after refresh)
     useEffect(() => {
@@ -125,7 +127,7 @@ const ArticleList: React.FC<Props> = ({ route, navigation }) => {
         }
     };
 
-    const getItemLayout = (_: any, index: number) => ({
+    const getItemLayout = (_: Article[] | null | undefined, index: number) => ({
         length: 100,
         offset: 100 * index,
         index,
@@ -186,7 +188,7 @@ const ArticleList: React.FC<Props> = ({ route, navigation }) => {
                     initialNumToRender={10}
                     windowSize={5}
                     renderItem={({ item }) => (
-                        <TouchableOpacity onPress={() => navigation.navigate('ArticleDetail', { article: item, userId: item.user_id })}>
+                        <TouchableOpacity onPress={() => navigation.navigate('ArticleDetail', { articleId: item.id, userId: item.user_id })}>
                             <View style={styles.articleItem}>
                                 {item.image && <Image source={{ uri: item.image }} style={styles.articleImage} />}
                                 <View style={styles.articleTextContainer}>

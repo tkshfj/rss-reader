@@ -6,10 +6,15 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/StackNavigator';
 import { RouteProp } from '@react-navigation/native';
 
+const mockFetchArticleById = jest.fn();
+const mockGetBookmarkStatus = jest.fn();
+const mockSetBookmarkStatus = jest.fn();
+
 // Mock service functions used by ArticleDetail
 jest.mock('../services/articleService', () => ({
-  getBookmarkStatus: jest.fn().mockResolvedValue(false),
-  setBookmarkStatus: jest.fn().mockResolvedValue(undefined),
+  fetchArticleById: (...args: any[]) => mockFetchArticleById(...args),
+  getBookmarkStatus: (...args: any[]) => mockGetBookmarkStatus(...args),
+  setBookmarkStatus: (...args: any[]) => mockSetBookmarkStatus(...args),
 }));
 
 jest.mock('../services/settingsService', () => ({
@@ -52,19 +57,28 @@ const mockRoute: RouteProp<RootStackParamList, 'ArticleDetail'> = {
   key: 'ArticleDetail-key',
   name: 'ArticleDetail',
   params: {
-    article: {
-      id: 1,
-      title: 'Sample Article',
-      summary: '<p>This is a test summary.</p>',
-      author: 'John Doe',
-      image: 'https://example.com/image.jpg',
-      published: '2025-03-09T12:00:00Z',
-      link: 'https://example.com/full-article',
-      feed_id: 100,
-      feed_title: 'Test Feed',
-    },
+    articleId: '1',
     userId: 'test-user-123',
   },
+};
+
+const articleData = {
+  id: '1',
+  user_id: 'test-user-123',
+  feed_id: '100',
+  title: 'Sample Article',
+  summary: '<p>This is a test summary.</p>',
+  content: '',
+  content_html: '',
+  author: 'John Doe',
+  image: 'https://example.com/image.jpg',
+  media_image: null,
+  published: '2025-03-09T12:00:00Z',
+  identifier_type: null,
+  link: 'https://example.com/full-article',
+  bookmarked: false,
+  fetched_at: '2025-03-09T12:00:00Z',
+  feed_title: 'Test Feed',
 };
 
 describe('ArticleDetail Component', () => {
@@ -74,6 +88,9 @@ describe('ArticleDetail Component', () => {
     jest.clearAllMocks();
     navigation = createMockNavigation();
     jest.spyOn(Linking, 'openURL').mockImplementation(jest.fn());
+    mockFetchArticleById.mockResolvedValue(articleData);
+    mockGetBookmarkStatus.mockResolvedValue(false);
+    mockSetBookmarkStatus.mockResolvedValue(undefined);
   });
 
   test('renders article details correctly', async () => {

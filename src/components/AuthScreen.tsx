@@ -9,25 +9,33 @@ export default function AuthScreen() {
 
   // Function to handle user authentication
   const handleAuth = async () => {
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail || !/\S+@\S+\.\S+/.test(trimmedEmail)) {
+      Alert.alert("Error", "Please enter a valid email address.");
+      return;
+    }
+    if (password.length < 6) {
+      Alert.alert("Error", "Password must be at least 6 characters.");
+      return;
+    }
+
     try {
-      // Check if the email is already registered in the users table
-      const userExists = await checkUserExists(email);
+      const userExists = await checkUserExists(trimmedEmail);
 
       if (userExists) {
-        // Sign in the user if they exist
-        const user = await signIn(email, password);
+        const user = await signIn(trimmedEmail, password);
         if (user) {
           Alert.alert("Success", "Signed in!");
         }
       } else {
-        // Sign up the user if they don't exist
-        const newUser = await signUp(email, password);
+        const newUser = await signUp(trimmedEmail, password);
         if (newUser) {
           Alert.alert("Success", "Check your email for verification");
         }
       }
     } catch (error) {
-      Alert.alert("Error", (error as any).message || "An unknown error occurred");
+      Alert.alert("Error", error instanceof Error ? error.message : "An unknown error occurred");
     }
   };
 
@@ -37,7 +45,7 @@ export default function AuthScreen() {
       <TextInput value={email} onChangeText={setEmail} placeholder="Enter your email" style={styles.input} />
       <Text>Password:</Text>
       <TextInput value={password} onChangeText={setPassword} placeholder="Enter your password" secureTextEntry style={styles.input} />
-      <Button title="Sign Up" onPress={handleAuth} />
+      <Button title="Continue" onPress={handleAuth} />
     </View>
   );
 }

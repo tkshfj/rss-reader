@@ -23,7 +23,7 @@ describe("AuthScreen Authentication Flow", () => {
 
     fireEvent.changeText(screen.getByPlaceholderText("Enter your email"), "user@example.com");
     fireEvent.changeText(screen.getByPlaceholderText("Enter your password"), "password123");
-    fireEvent.press(screen.getByText("Sign Up"));
+    fireEvent.press(screen.getByText("Continue"));
 
     await waitFor(() => {
       expect(checkUserExists).toHaveBeenCalledWith("user@example.com");
@@ -40,7 +40,7 @@ describe("AuthScreen Authentication Flow", () => {
 
     fireEvent.changeText(screen.getByPlaceholderText("Enter your email"), "newuser@example.com");
     fireEvent.changeText(screen.getByPlaceholderText("Enter your password"), "securepass");
-    fireEvent.press(screen.getByText("Sign Up"));
+    fireEvent.press(screen.getByText("Continue"));
 
     await waitFor(() => {
       expect(checkUserExists).toHaveBeenCalledWith("newuser@example.com");
@@ -59,7 +59,7 @@ describe("AuthScreen Authentication Flow", () => {
 
     fireEvent.changeText(screen.getByPlaceholderText("Enter your email"), "wrong@example.com");
     fireEvent.changeText(screen.getByPlaceholderText("Enter your password"), "wrongpass");
-    fireEvent.press(screen.getByText("Sign Up"));
+    fireEvent.press(screen.getByText("Continue"));
 
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalledWith("Error", "Invalid credentials");
@@ -77,7 +77,7 @@ describe("AuthScreen Authentication Flow", () => {
 
     fireEvent.changeText(screen.getByPlaceholderText("Enter your email"), "existing@example.com");
     fireEvent.changeText(screen.getByPlaceholderText("Enter your password"), "password123");
-    fireEvent.press(screen.getByText("Sign Up"));
+    fireEvent.press(screen.getByText("Continue"));
 
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalledWith("Error", "Email already in use");

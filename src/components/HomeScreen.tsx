@@ -48,7 +48,7 @@ const HomeScreen: React.FC<Props> = ({ navigation, route }) => {
   );
 
   // Toggle section visibility
-  const toggleSection = (section: string) => {
+  const toggleSection = (section: 'Home' | 'Saved' | 'Feeds') => {
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 

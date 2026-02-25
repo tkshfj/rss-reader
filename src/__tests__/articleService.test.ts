@@ -9,7 +9,6 @@ import {
     getBookmarkStatus,
     setBookmarkStatus,
     fetchBookmarkedArticles,
-    fetchAllArticles,
     fetchUserFeeds,
     checkFeedExists,
     addFeed,
@@ -78,6 +77,11 @@ describe('extractImageFromContent', () => {
     it('extracts first image when multiple exist', () => {
         const html = '<img src="https://first.jpg"><img src="https://second.jpg">';
         expect(extractImageFromContent(html)).toBe('https://first.jpg');
+    });
+
+    it('rejects non-http image URLs', () => {
+        expect(extractImageFromContent('<img src="data:image/png;base64,abc">')).toBeNull();
+        expect(extractImageFromContent('<img src="javascript:alert(1)">')).toBeNull();
     });
 });
 
@@ -167,49 +171,53 @@ describe('getArticleCount', () => {
 describe('getBookmarkStatus', () => {
     it('returns true when bookmarked', async () => {
         mockSingle.mockResolvedValue({ data: { bookmarked: true }, error: null });
-        expect(await getBookmarkStatus('article-1')).toBe(true);
+        expect(await getBookmarkStatus('article-1', 'user-1')).toBe(true);
     });
 
     it('returns false when not bookmarked', async () => {
         mockSingle.mockResolvedValue({ data: { bookmarked: false }, error: null });
-        expect(await getBookmarkStatus('article-1')).toBe(false);
+        expect(await getBookmarkStatus('article-1', 'user-1')).toBe(false);
     });
 
     it('throws on error', async () => {
         mockSingle.mockResolvedValue({ data: null, error: { message: 'Not found' } });
-        await expect(getBookmarkStatus('bad-id')).rejects.toThrow('Not found');
+        await expect(getBookmarkStatus('bad-id', 'user-1')).rejects.toThrow('Not found');
     });
 });
 
 describe('setBookmarkStatus', () => {
     it('updates bookmark status without error', async () => {
-        mockEq.mockResolvedValueOnce({ error: null });
-        await expect(setBookmarkStatus('article-1', true)).resolves.toBeUndefined();
+        mockEq
+            .mockReturnValueOnce(mockChain)
+            .mockResolvedValueOnce({ error: null });
+        await expect(setBookmarkStatus('article-1', 'user-1', true)).resolves.toBeUndefined();
         expect(supabase.from).toHaveBeenCalledWith('articles');
     });
 
     it('throws on error', async () => {
-        mockEq.mockResolvedValueOnce({ error: { message: 'Update failed' } });
-        await expect(setBookmarkStatus('article-1', true)).rejects.toThrow('Update failed');
+        mockEq
+            .mockReturnValueOnce(mockChain)
+            .mockResolvedValueOnce({ error: { message: 'Update failed' } });
+        await expect(setBookmarkStatus('article-1', 'user-1', true)).rejects.toThrow('Update failed');
     });
 });
 
 describe('fetchBookmarkedArticles', () => {
     it('returns bookmarked articles', async () => {
         const articles = [{ id: '1', title: 'Bookmarked Article' }];
-        mockOrder.mockResolvedValueOnce({ data: articles, error: null });
+        mockLimit.mockResolvedValueOnce({ data: articles, error: null });
         const result = await fetchBookmarkedArticles('user-1');
-        expect(result).toEqual(articles);
+        expect(result).toEqual([{ id: '1', title: 'Bookmarked Article', feed_title: null }]);
     });
 
     it('returns empty array when no bookmarks', async () => {
-        mockOrder.mockResolvedValueOnce({ data: [], error: null });
+        mockLimit.mockResolvedValueOnce({ data: [], error: null });
         const result = await fetchBookmarkedArticles('user-1');
         expect(result).toEqual([]);
     });
 
     it('throws on error', async () => {
-        mockOrder.mockResolvedValueOnce({ data: null, error: { message: 'Query failed' } });
+        mockLimit.mockResolvedValueOnce({ data: null, error: { message: 'Query failed' } });
         await expect(fetchBookmarkedArticles('user-1')).rejects.toThrow('Query failed');
     });
 });

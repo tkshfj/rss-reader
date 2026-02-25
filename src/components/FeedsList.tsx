@@ -19,24 +19,12 @@ const FeedItem = React.memo(({ feed, onPress }: { feed: Feed; onPress: (feed: Fe
         <Text style={styles.feedUrl}>{feed.url}</Text>
     </TouchableOpacity>
 ));
+FeedItem.displayName = 'FeedItem';
 
 const FeedsList: React.FC<FeedsListProps> = ({ navigation, route }) => {
     const userId = route.params.userId;
     const [feeds, setFeeds] = useState<Feed[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
-
-    // Fetch feeds only when userId changes
-    const fetchFeeds = useCallback(async () => {
-        setLoading(true);
-        try {
-            const fetchedFeeds = await fetchUserFeeds(userId);
-            setFeeds(fetchedFeeds);
-        } catch (error) {
-            console.error('Error fetching feeds:', error);
-        } finally {
-            setLoading(false);
-        }
-    }, [userId]);
 
     // Handle feed item press
     const handlePress = useCallback((feed: Feed) => {
@@ -50,8 +38,21 @@ const FeedsList: React.FC<FeedsListProps> = ({ navigation, route }) => {
     // Refresh feeds when the screen is focused
     useFocusEffect(
         useCallback(() => {
-            fetchFeeds();
-        }, [fetchFeeds])
+            let cancelled = false;
+            const loadFeeds = async () => {
+                setLoading(true);
+                try {
+                    const fetchedFeeds = await fetchUserFeeds(userId);
+                    if (!cancelled) setFeeds(fetchedFeeds);
+                } catch (error) {
+                    console.error('Error fetching feeds:', error);
+                } finally {
+                    if (!cancelled) setLoading(false);
+                }
+            };
+            loadFeeds();
+            return () => { cancelled = true; };
+        }, [userId])
     );
 
     return (
