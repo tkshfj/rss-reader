@@ -51,9 +51,7 @@ beforeEach(() => {
     act(() => {
         (useFeedStore as unknown as jest.Mock).mockReturnValue({
             articles: [],
-            lastFetchTime: null,
             setArticles: jest.fn(),
-            updateLastFetchTime: jest.fn(),
         });
     });
 });
@@ -145,34 +143,36 @@ describe('FeedsList Component', () => {
         });
     });
 
-    test('prevents unnecessary article fetches if within 10 minutes', async () => {
+    test('fetches both feeds and articles on initial render', async () => {
         const setArticlesMock = jest.fn();
-        const updateLastFetchTimeMock = jest.fn();
-    
+
         (useFeedStore as unknown as jest.Mock).mockReturnValue({
             articles: [],
-            lastFetchTime: Date.now(),
             setArticles: setArticlesMock,
-            updateLastFetchTime: updateLastFetchTimeMock,
         });
-    
-        (supabase.from as jest.Mock).mockReturnValueOnce({
+
+        const makeMock = (data: any) => ({
             select: jest.fn().mockReturnThis(),
             eq: jest.fn().mockReturnThis(),
-            then: jest.fn((callback) => callback({ data: [], error: null })),
+            order: jest.fn().mockReturnThis(),
+            then: jest.fn((callback: any) => callback({ data, error: null })),
         });
-    
-        const { getByText, queryByTestId } = render(
+
+        // Provide mocks for initial render: feeds query + articles query
+        (supabase.from as jest.Mock)
+            .mockReturnValueOnce(makeMock([]))   // feeds
+            .mockReturnValueOnce(makeMock([]));   // articles
+
+        const { getByText } = render(
             <NavigationContainer>
                 <FeedsList navigation={mockNavigation} route={{ params: { userId: mockUserId } }} />
             </NavigationContainer>
         );
-    
+
         await waitFor(() => expect(getByText('No feeds added yet.')).toBeTruthy());
-    
-        expect(queryByTestId('loading-indicator')).toBeNull();
-        expect(updateLastFetchTimeMock).not.toHaveBeenCalled();
-        expect(setArticlesMock).not.toHaveBeenCalled();
+
+        // Both feeds and articles queries should have been made
+        expect((supabase.from as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(2);
     });
 
     test('fetches and stores new articles in Zustand', async () => {
@@ -183,7 +183,7 @@ describe('FeedsList Component', () => {
         const realStore = realModule.useFeedStore;
 
         // Reset real store state before test
-        realStore.setState({ articles: [], lastFetchTime: null });
+        realStore.setState({ articles: [] });
 
         // Delegate the mock to the real store hook so the component
         // subscribes to and mutates real Zustand state
@@ -218,7 +218,6 @@ describe('FeedsList Component', () => {
         await waitFor(() => {
             const state = realStore.getState();
             expect(state.articles.length).toBeGreaterThan(0);
-            expect(state.lastFetchTime).not.toBeNull();
         });
     });
 });

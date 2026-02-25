@@ -1,5 +1,5 @@
 // FeedsList.tsx
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, ActivityIndicator, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/StackNavigator';
@@ -36,11 +36,11 @@ const fetchFeedsFromSupabase = async (userId: string) => {
     return data || [];
 };
 
-// Fetch articles from Supabase
+// Fetch articles from Supabase (select only fields needed for the feeds list)
 const fetchArticlesFromSupabase = async (userId: string) => {
     const { data, error } = await supabase
         .from('articles')
-        .select('*')
+        .select('id, user_id, feed_id, title, link, image, author, published, bookmarked, fetched_at')
         .eq('user_id', userId)
         .order('published', { ascending: false });
 
@@ -63,7 +63,8 @@ const FeedsList: React.FC<FeedsListProps> = ({ navigation, route }) => {
     const userId = route.params.userId;
     const [feeds, setFeeds] = useState<Feed[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
-    const { setArticles, lastFetchTime, updateLastFetchTime } = useFeedStore();
+    const { setArticles } = useFeedStore();
+    const lastFetchTimeRef = useRef<number | null>(null);
 
     // Fetch feeds only when userId changes
     const fetchFeeds = useCallback(async () => {
@@ -87,11 +88,11 @@ const FeedsList: React.FC<FeedsListProps> = ({ navigation, route }) => {
         const now = Date.now();
 
         // Prevent unnecessary fetches if called within 10 minutes
-        if (lastFetchTime && (now - lastFetchTime < 10 * 60 * 1000)) {
+        if (lastFetchTimeRef.current && (now - lastFetchTimeRef.current < 10 * 60 * 1000)) {
             return;
         }
 
-        updateLastFetchTime(now);
+        lastFetchTimeRef.current = now;
         const newArticles = await fetchArticlesFromSupabase(userId);
 
         if (newArticles.length > 0) {
@@ -103,7 +104,7 @@ const FeedsList: React.FC<FeedsListProps> = ({ navigation, route }) => {
                 return Array.from(uniqueArticles.values());
             });
         }
-    }, [setArticles, userId, lastFetchTime, updateLastFetchTime]);
+    }, [setArticles, userId]);
 
     // Refresh feeds and articles when the screen is focused
     useFocusEffect(

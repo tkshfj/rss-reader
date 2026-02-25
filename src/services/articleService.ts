@@ -20,7 +20,7 @@ export type Article = {
     bookmarked: boolean;
     fetched_at: string;
     feed_title?: string | null;
-    feeds?: { title: string }[] | { title: string } | null;
+    feeds?: { title: string } | null;
 };
 
 export const extractImageFromContent = (content: string | null): string | null => {
@@ -93,11 +93,7 @@ export const fetchArticles = async (
 
     return (data || []).map(article => ({
         ...article,
-        feed_title: Array.isArray(article.feeds)
-            ? article.feeds.length > 0
-                ? article.feeds[0].title
-                : null
-            : (article.feeds as { title: string })?.title || null,
+        feed_title: article.feeds?.title ?? null,
     }));
 };
 
@@ -116,7 +112,14 @@ export const getFeedUrls = async (feedId: string, userId: string): Promise<{ id:
 export const fetchAndStoreRSS = async (feedId: string, feedUrl: string, userId: string): Promise<void> => {
     if (!userId) return;
 
-    const response = await fetch(feedUrl);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    let response: Response;
+    try {
+        response = await fetch(feedUrl, { signal: controller.signal });
+    } finally {
+        clearTimeout(timeoutId);
+    }
     if (!response.ok) return;
 
     const text = await response.text();
@@ -153,7 +156,7 @@ export const fetchAndStoreRSS = async (feedId: string, feedUrl: string, userId: 
                 fetched_at: new Date().toISOString(),
             };
         })
-        .filter(article => article !== null && !existingLinks.has(article!.link));
+        .filter((article): article is NonNullable<typeof article> => article !== null && !existingLinks.has(article.link));
 
     if (newArticles.length === 0) return;
 

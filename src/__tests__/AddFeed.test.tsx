@@ -4,7 +4,6 @@ import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import AddFeed from '../components/AddFeed';
 import { supabase } from '../services/supabase';
-import { getUserId } from "../services/auth";
 import RSSParser from 'react-native-rss-parser';
 import { Alert } from 'react-native';
 
@@ -25,11 +24,6 @@ jest.mock('../services/supabase', () => ({
   },
 }));
 
-// Mock User Authentication
-jest.mock('../services/auth', () => ({
-  getUserId: jest.fn(() => Promise.resolve('test-user-id')),
-}));
-
 // Mock RSS Parser
 jest.mock('react-native-rss-parser', () => ({
   parse: jest.fn(() =>
@@ -38,7 +32,7 @@ jest.mock('react-native-rss-parser', () => ({
 }));
 
 // Mock fetch API
-global.fetch = jest.fn((url) => {
+global.fetch = jest.fn(() => {
     return Promise.resolve(
         new Response('<rss><channel><title>Test Feed</title></channel></rss>', {
           status: 200,
@@ -46,14 +40,40 @@ global.fetch = jest.fn((url) => {
           headers: { "Content-Type": "application/xml" },
         })
       );
-});
+}) as jest.Mock;
 
 // Mock Alerts
 jest.spyOn(Alert, 'alert').mockImplementation((title, message) => {});
 
+// Mock navigation and route props
+const mockNavigation = {
+  navigate: jest.fn(),
+  goBack: jest.fn(),
+  dispatch: jest.fn(),
+  reset: jest.fn(),
+  isFocused: jest.fn(),
+  canGoBack: jest.fn(),
+  getId: jest.fn(),
+  getState: jest.fn(),
+  setParams: jest.fn(),
+  getParent: jest.fn(),
+  addListener: jest.fn(),
+  removeListener: jest.fn(),
+} as any;
+
+const mockRoute = {
+  key: 'AddFeed-key',
+  name: 'AddFeed' as const,
+  params: { userId: 'test-user-id' },
+};
+
 // Utility to wrap component in NavigationContainer
-const renderWithNavigation = (component: JSX.Element) => {
-  return render(<NavigationContainer>{component}</NavigationContainer>);
+const renderAddFeed = () => {
+  return render(
+    <NavigationContainer>
+      <AddFeed navigation={mockNavigation} route={mockRoute} />
+    </NavigationContainer>
+  );
 };
 
 describe('AddFeed Component', () => {
@@ -67,13 +87,13 @@ describe('AddFeed Component', () => {
   });
 
   test('renders AddFeedForm with input and button', () => {
-    const { getByPlaceholderText, getByText } = renderWithNavigation(<AddFeed />);
+    const { getByPlaceholderText, getByText } = renderAddFeed();
     expect(getByPlaceholderText('Enter RSS Feed URL')).toBeTruthy();
     expect(getByText('Add Feed')).toBeTruthy();
   });
 
   test('calls fetch and RSS parser when adding a feed', async () => {
-    const { getByText, getByPlaceholderText } = renderWithNavigation(<AddFeed />);
+    const { getByText, getByPlaceholderText } = renderAddFeed();
     const input = getByPlaceholderText('Enter RSS Feed URL');
     const button = getByText('Add Feed');
 
@@ -87,13 +107,13 @@ describe('AddFeed Component', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledTimes(1);
-      expect(global.fetch).toHaveBeenCalledWith('https://example.com/rss');
+      expect(global.fetch).toHaveBeenCalledWith('https://example.com/rss', expect.objectContaining({ signal: expect.any(AbortSignal) }));
       expect(RSSParser.parse).toHaveBeenCalled();
     });
   });
 
   test('adds feed to Supabase if it does not exist', async () => {
-    const { getByText, getByPlaceholderText } = renderWithNavigation(<AddFeed />);
+    const { getByText, getByPlaceholderText } = renderAddFeed();
     const input = getByPlaceholderText('Enter RSS Feed URL');
     const button = getByText('Add Feed');
 
@@ -107,7 +127,7 @@ describe('AddFeed Component', () => {
 
     await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledTimes(1);
-        expect(global.fetch).toHaveBeenCalledWith('https://example.com/rss');
+        expect(global.fetch).toHaveBeenCalledWith('https://example.com/rss', expect.objectContaining({ signal: expect.any(AbortSignal) }));
         expect(RSSParser.parse).toHaveBeenCalled();
         expect(supabase.from).toHaveBeenCalledWith('feeds');
         expect(mockSupabaseBuilder.insert).toHaveBeenCalled();
@@ -121,7 +141,7 @@ describe('AddFeed Component', () => {
       error: null,
     });
 
-    const { getByText, getByPlaceholderText } = renderWithNavigation(<AddFeed />);
+    const { getByText, getByPlaceholderText } = renderAddFeed();
     const input = getByPlaceholderText('Enter RSS Feed URL');
     const button = getByText('Add Feed');
 
@@ -139,7 +159,7 @@ describe('AddFeed Component', () => {
   });
 
   test('shows an alert if feed URL is empty', async () => {
-    const { getByText } = renderWithNavigation(<AddFeed />);
+    const { getByText } = renderAddFeed();
     const button = getByText('Add Feed');
 
     await act(async () => {

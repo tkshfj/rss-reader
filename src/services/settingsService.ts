@@ -5,7 +5,7 @@ import { supabase } from './supabase';
 export const DEFAULT_SETTINGS = {
     dark_mode: false,
     auto_theme: true,
-    font_size: 12,
+    font_size: 16,
     line_spacing: 1.5,
     notifications: false,
     max_articles_per_feed: 50,

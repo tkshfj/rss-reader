@@ -46,6 +46,7 @@ const mockRoute: RouteProp<RootStackParamList, 'ArticleDetail'> = {
       published: '2025-03-09T12:00:00Z',
       link: 'https://example.com/full-article',
       feed_id: 100,
+      feed_title: 'Test Feed',
     },
     userId: 'test-user-123',
   },

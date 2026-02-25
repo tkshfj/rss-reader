@@ -1,12 +1,11 @@
 // AddFeed.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, Keyboard, TextInput, Button, Alert, ActivityIndicator, StyleSheet } from 'react-native';
 import RSSParser from 'react-native-rss-parser';
-import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/StackNavigator';
 import { supabase } from '../services/supabase';
-import { getUserId } from "../services/auth";
 
 // Props for the AddFeedForm component
 type AddFeedFormProps = {
@@ -40,29 +39,33 @@ const AddFeedForm = ({ feedUrl, setFeedUrl, addingFeed, handleAddFeed, textInput
     </View>
 );
 
+// Define props for the AddFeed component
+type Props = {
+    navigation: StackNavigationProp<RootStackParamList, 'AddFeed'>;
+    route: RouteProp<RootStackParamList, 'AddFeed'>;
+};
+
 // Main component for adding a new RSS feed
-const AddFeed = () => {
-    const navigation = useNavigation<StackNavigationProp<RootStackParamList, 'AddFeed'>>();
-    const [userId, setUserId] = useState<string | null>(null);
+const AddFeed: React.FC<Props> = ({ navigation, route }) => {
+    const userId = route.params?.userId ?? null;
     const [feedUrl, setFeedUrl] = useState("");
     const [addingFeed, setAddingFeed] = useState(false);
     const textInputRef = useRef<TextInput>(null);
 
-    // Fetch the user ID when the component mounts
-    useEffect(() => {
-        getUserId().then(setUserId);
-    }, []);
-
     // Function to parse the RSS feed from the given URL
     const parseRssFeed = async (url: string) => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
         try {
-            const response = await fetch(url);
+            const response = await fetch(url, { signal: controller.signal });
             if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
             const text = await response.text();
             return await RSSParser.parse(text);
         } catch (error) {
             console.error("Error parsing RSS feed:", error);
             return null;
+        } finally {
+            clearTimeout(timeoutId);
         }
     };
 

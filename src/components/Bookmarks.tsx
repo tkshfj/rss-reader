@@ -1,7 +1,8 @@
 // Bookmarks.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, ActivityIndicator, FlatList, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/StackNavigator';
 import { supabase } from '../services/supabase';
 import { Article } from '../services/articleService';
@@ -41,27 +42,31 @@ const Bookmarks: React.FC<BookmarksProps> = ({ navigation, route }) => {
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Fetch bookmarks when the component mounts or userId changes
-    useEffect(() => {
-        if (!userId) {
-            setError("User ID is missing. Unable to fetch bookmarks.");
-            setLoading(false);
-            return;
-        }
-
-        const fetchData = async () => {
-            setLoading(true);
-            setError(null);
-            const { data, error } = await fetchBookmarks(userId);
-            if (error) {
-                setError(error);
+    // Refresh bookmarks when the screen is focused (e.g. navigating back from ArticleDetail)
+    useFocusEffect(
+        useCallback(() => {
+            if (!userId) {
+                setError("User ID is missing. Unable to fetch bookmarks.");
+                setLoading(false);
+                return;
             }
-            setArticles(data);
-            setLoading(false);
-        };
 
-        fetchData();
-    }, [userId]);
+            let cancelled = false;
+            const fetchData = async () => {
+                setLoading(true);
+                setError(null);
+                const { data, error } = await fetchBookmarks(userId);
+                if (!cancelled) {
+                    if (error) setError(error);
+                    setArticles(data);
+                    setLoading(false);
+                }
+            };
+
+            fetchData();
+            return () => { cancelled = true; };
+        }, [userId])
+    );
 
     return (
         <View style={styles.container}>

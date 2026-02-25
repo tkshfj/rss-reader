@@ -77,14 +77,20 @@ async function syncUserIdWithUsersTable(authUserId: string, email: string) {
     }
 
     if (existingUser && existingUser.id !== authUserId) {
-      console.warn(`Updating user_id in users table: ${existingUser.id} > ${authUserId}`);
+      // Mismatch between auth.users.id and public.users.id.
+      // Cannot safely update the PK because foreign keys (feeds, articles)
+      // reference users(id) with ON DELETE CASCADE but no ON UPDATE CASCADE.
+      // Delete the stale row and re-insert so cascading deletes clean up orphans.
+      console.warn(`Replacing stale user record: ${existingUser.id} -> ${authUserId}`);
 
-      const { error: updateError } = await supabase
+      const { error: deleteError } = await supabase
         .from("users")
-        .update({ id: authUserId })
-        .eq("email", email);
+        .delete()
+        .eq("id", existingUser.id);
 
-      if (updateError) throw updateError;
+      if (deleteError) throw deleteError;
+
+      await insertUserIfNotExists(authUserId, email);
     } else if (!existingUser) {
       await insertUserIfNotExists(authUserId, email);
     }
@@ -111,10 +117,10 @@ export async function insertUserIfNotExists(userId: string, email: string) {
       const { error: insertError } = await supabase.from("users").insert([
         {
           id: userId,
-          email: email, // Ensure email is included
+          email: email,
           dark_mode: false,
           auto_theme: true,
-          font_size: 12,
+          font_size: 16,
           line_spacing: 1.5,
           notifications: false,
         },

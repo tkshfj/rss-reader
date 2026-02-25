@@ -1,5 +1,5 @@
 // ArticleDetail.tsx
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, Image, StyleSheet, TouchableOpacity, ActivityIndicator, Linking, useColorScheme, Alert } from 'react-native';
 import { RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -8,6 +8,24 @@ import RenderHTML from 'react-native-render-html';
 import { useWindowDimensions } from 'react-native';
 import { supabase } from '../services/supabase';
 import { getRelativeTime } from '../services/utils';
+
+// Standard HTML tags for filtering out custom/unknown tags from RSS content
+const STANDARD_TAGS = new Set([
+  'html', 'head', 'title', 'base', 'link', 'meta', 'style', 'script', 'noscript', 'body', 'section', 'nav', 'article', 'aside', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'footer', 'address', 'main', 'p', 'hr', 'pre', 'blockquote', 'ol', 'ul', 'li', 'dl', 'dt', 'dd', 'figure', 'figcaption', 'div', 'a', 'em', 'strong', 'small', 's', 'cite', 'q', 'dfn', 'abbr', 'ruby', 'rt', 'rp', 'data', 'time', 'code', 'var', 'samp', 'kbd', 'sub', 'sup', 'i', 'b', 'u', 'mark', 'bdi', 'bdo', 'span', 'br', 'wbr', 'ins', 'del', 'picture', 'source', 'img', 'iframe', 'embed', 'object', 'param', 'video', 'audio', 'track', 'map', 'area', 'table', 'caption', 'colgroup', 'col', 'tbody', 'thead', 'tfoot', 'tr', 'td', 'th', 'form', 'label', 'input', 'button', 'select', 'datalist', 'optgroup', 'option', 'textarea', 'output', 'progress', 'meter', 'fieldset', 'legend', 'details', 'summary', 'dialog', 'template', 'canvas'
+]);
+
+const extractCustomTags = (html: string): string[] => {
+  const regex = /<\/?([a-zA-Z0-9]+)[^>]*>/g;
+  const customTags = new Set<string>();
+  let match;
+  while ((match = regex.exec(html)) !== null) {
+    const tagName = match[1].toLowerCase();
+    if (!STANDARD_TAGS.has(tagName)) {
+      customTags.add(tagName);
+    }
+  }
+  return Array.from(customTags);
+};
 
 // Define the types for the ArticleDetail component
 type ArticleDetailRouteProp = RouteProp<RootStackParamList, 'ArticleDetail'>;
@@ -23,7 +41,6 @@ const ArticleDetail: React.FC<Props> = ({ route, navigation }) => {
   const { article, userId } = route.params;
   const { width } = useWindowDimensions();
   const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
-  const [feedTitle, setFeedTitle] = useState<string | null>(null);
   const systemTheme = useColorScheme();
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState({
@@ -33,24 +50,8 @@ const ArticleDetail: React.FC<Props> = ({ route, navigation }) => {
     line_spacing: 1.5,
   });
 
-  // Fetch feed title from the database based on the article's feed_id
-  const fetchFeedTitle = useCallback(async () => {
-    if (!article?.feed_id) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('feeds')
-        .select('title')
-        .eq('id', article.feed_id)
-        .single();
-
-      if (error) throw new Error(error.message);
-
-      setFeedTitle(data?.title || 'Unknown Feed');
-    } catch (error) {
-      console.error('Error fetching feed title:', error);
-    }
-  }, [article?.feed_id]);
+  // Derive feed title from the article object (already joined by fetchArticles)
+  const feedTitle = article.feed_title ?? article.feeds?.title ?? 'Unknown Feed';
 
   // Check if the article is bookmarked by the user
   const checkIfBookmarked = useCallback(async () => {
@@ -101,14 +102,13 @@ const ArticleDetail: React.FC<Props> = ({ route, navigation }) => {
     }
   }, [userId]);
 
-  // Fetch feed title, bookmark status, and user settings when the article changes
+  // Fetch bookmark status and user settings when the article changes
   useEffect(() => {
     if (article) {
-      fetchFeedTitle();
       checkIfBookmarked();
       fetchUserSettings();
     }
-  }, [article, fetchFeedTitle, checkIfBookmarked, fetchUserSettings]);
+  }, [article, checkIfBookmarked, fetchUserSettings]);
 
   // Toggle the bookmark status of the article
   const toggleBookmark = async () => {
@@ -140,27 +140,8 @@ const ArticleDetail: React.FC<Props> = ({ route, navigation }) => {
   // Note: Dark mode is not implemented this time
   const effectiveDarkMode = settings.auto_theme ? systemTheme === "dark" : settings.dark_mode;
 
-  // Function to extract custom tags from HTML content
-  const extractCustomTags = (html: string) => {
-    const regex = /<\/?([a-zA-Z0-9]+)[^>]*>/g;
-    const standardTags = new Set([
-      'html', 'head', 'title', 'base', 'link', 'meta', 'style', 'script', 'noscript', 'body', 'section', 'nav', 'article', 'aside', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'footer', 'address', 'main', 'p', 'hr', 'pre', 'blockquote', 'ol', 'ul', 'li', 'dl', 'dt', 'dd', 'figure', 'figcaption', 'div', 'a', 'em', 'strong', 'small', 's', 'cite', 'q', 'dfn', 'abbr', 'ruby', 'rt', 'rp', 'data', 'time', 'code', 'var', 'samp', 'kbd', 'sub', 'sup', 'i', 'b', 'u', 'mark', 'bdi', 'bdo', 'span', 'br', 'wbr', 'ins', 'del', 'picture', 'source', 'img', 'iframe', 'embed', 'object', 'param', 'video', 'audio', 'track', 'map', 'area', 'table', 'caption', 'colgroup', 'col', 'tbody', 'thead', 'tfoot', 'tr', 'td', 'th', 'form', 'label', 'input', 'button', 'select', 'datalist', 'optgroup', 'option', 'textarea', 'output', 'progress', 'meter', 'fieldset', 'legend', 'details', 'summary', 'dialog', 'script', 'noscript', 'template', 'canvas'
-    ]);
-    const customTags = new Set<string>();
-
-    let match;
-    while ((match = regex.exec(html)) !== null) {
-      const tagName = match[1].toLowerCase();
-      if (!standardTags.has(tagName)) {
-        customTags.add(tagName);
-      }
-    }
-
-    return Array.from(customTags);
-  };
-
-  // Extract custom tags from article summary
-  const customTags = extractCustomTags(article.summary);
+  // Memoize custom tag extraction so it only runs when the summary changes
+  const customTags = useMemo(() => extractCustomTags(article.summary), [article.summary]);
 
   return (
     <View style={[styles.container, effectiveDarkMode && styles.darkMode]}>
@@ -175,8 +156,8 @@ const ArticleDetail: React.FC<Props> = ({ route, navigation }) => {
             {article.title}
           </Text>
           {article.image && <Image source={{ uri: article.image }} style={styles.image} />}
-          <Text style={{ fontSize: 16, color: 'gray', marginTop: 10 }}>
-          {article.author || 'Unknown'} | {getRelativeTime(article.published)}
+          <Text style={styles.articleMeta}>
+            {article.author || 'Unknown'} | {getRelativeTime(article.published)}
           </Text>
           <RenderHTML
             contentWidth={width}
@@ -235,6 +216,11 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 200,
     marginVertical: 10,
+  },
+  articleMeta: {
+    fontSize: 16,
+    color: 'gray',
+    marginTop: 10,
   },
   button: {
     marginTop: 20,
