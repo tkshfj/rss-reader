@@ -1,0 +1,175 @@
+// FeedsList.tsx
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, ActivityIndicator, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '../navigation/StackNavigator';
+import { useFocusEffect } from '@react-navigation/native';
+import { supabase } from '../services/supabase';
+import { Article } from '../services/articleService';
+import { useFeedStore } from '../services/feedStore';
+
+// Define the Feed type
+type Feed = {
+    id: string;
+    user_id: string;
+    title: string;
+    url: string;
+};
+
+// Define the props for the FeedsList component
+type FeedsListProps = {
+    navigation: StackNavigationProp<RootStackParamList, 'FeedsList'>;
+    userId: string;
+};
+
+// Fetch feeds from Supabase
+const fetchFeedsFromSupabase = async (userId: string) => {
+    const { data, error } = await supabase
+        .from('feeds')
+        .select('*')
+        .eq('user_id', userId);
+
+    if (error) {
+        console.error('Error fetching feeds:', error.message);
+        return [];
+    }
+    return data || [];
+};
+
+// Fetch articles from Supabase
+const fetchArticlesFromSupabase = async (userId: string) => {
+    const { data, error } = await supabase
+        .from('articles')
+        .select('*')
+        .eq('user_id', userId)
+        .order('published', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching articles:', error.message);
+        return [];
+    }
+    return data || [];
+};
+
+// Memoized Feed List Item Component
+const FeedItem = React.memo(({ feed, onPress }: { feed: Feed; onPress: (feed: Feed) => void }) => (
+    <TouchableOpacity onPress={() => onPress(feed)} style={styles.feedItem}>
+        <Text style={styles.feedTitle}>{feed.title}</Text>
+        <Text style={styles.feedUrl}>{feed.url}</Text>
+    </TouchableOpacity>
+));
+
+const FeedsList: React.FC<FeedsListProps> = ({ navigation, userId }) => {
+    const [feeds, setFeeds] = useState<Feed[]>([]);
+    const [loading, setLoading] = useState<boolean>(true);
+    const { setArticles, lastFetchTime, updateLastFetchTime } = useFeedStore();
+
+    // Fetch feeds only when userId changes
+    const fetchFeeds = useCallback(async () => {
+        setLoading(true);
+        const fetchedFeeds = await fetchFeedsFromSupabase(userId);
+        setFeeds(fetchedFeeds);
+        setLoading(false);
+    }, [userId]);
+
+    // Handle feed item press
+    const handlePress = useCallback((feed: Feed) => {
+        navigation.navigate("ArticleList", {
+            feedId: feed.id,
+            feedTitle: feed.title,
+            userId: feed.user_id
+        });
+    }, [navigation]);
+
+    // Fetch new articles only when necessary
+    const fetchNewArticles = useCallback(async () => {
+        const now = Date.now();
+
+        // Prevent unnecessary fetches if called within 10 minutes
+        if (lastFetchTime && (now - lastFetchTime < 10 * 60 * 1000)) {
+            return;
+        }
+
+        updateLastFetchTime(now); // Update last fetch time
+        const newArticles = await fetchArticlesFromSupabase(userId);
+
+        if (newArticles.length > 0) {
+            setArticles((prevArticles) => {
+                const uniqueArticles = new Map<string, Article>();
+
+                // Ensure uniqueness by `id`
+                [...newArticles, ...prevArticles].forEach(article => {
+                    uniqueArticles.set(article.id, article);
+                });
+
+                return Array.from(uniqueArticles.values());
+            });
+        }
+    }, [setArticles, userId, lastFetchTime, updateLastFetchTime]);
+
+    // Refresh feeds only when the screen is focused
+    useFocusEffect(
+        useCallback(() => {
+            fetchFeeds();
+        }, [fetchFeeds])
+    );
+
+    // Refresh articles every 10 minutes when the screen is focused
+    useFocusEffect(
+        useCallback(() => {
+            fetchNewArticles();
+        }, [fetchNewArticles])
+    );
+
+    // Fetch articles when userId changes
+    useEffect(() => {
+        const fetchArticles = async () => {
+            const fetchedArticles = await fetchArticlesFromSupabase(userId);
+            setArticles(() => fetchedArticles);
+            updateLastFetchTime(Date.now());
+        };
+
+        fetchArticles();
+    }, [userId, setArticles, updateLastFetchTime]);
+
+    return (
+        <View style={styles.container}>
+            {loading ? (
+                <ActivityIndicator size="large" color="#007AFF" testID="loading-indicator" />
+            ) : feeds.length === 0 ? (
+                <Text style={styles.emptyMessage}>No feeds added yet.</Text>
+            ) : (
+                <FlatList
+                    data={feeds}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item }) => <FeedItem feed={item} onPress={handlePress} />}
+                    getItemLayout={(data, index) => ({
+                        length: 70, // Assuming each item is ~70px tall
+                        offset: 70 * index,
+                        index,
+                    })}
+                    initialNumToRender={10}
+                    windowSize={5}
+                />
+            )}
+        </View>
+    );
+};
+
+// Styles for the FeedsList component
+const styles = StyleSheet.create({
+    container: { flex: 1, padding: 10, backgroundColor: '#fff' },
+    emptyMessage: { textAlign: "center", marginTop: 20, fontSize: 16, color: "gray" },
+    feedItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: '#ddd',
+    },
+    feedTitle: { fontSize: 18, fontWeight: 'bold' },
+    feedUrl: { color: 'gray' },
+});
+
+export default FeedsList;
