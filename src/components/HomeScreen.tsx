@@ -2,7 +2,7 @@
 import React, { useState, useCallback } from 'react';
 import { SafeAreaView, ScrollView, View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Cell, TableView } from "react-native-tableview-simple";
 import { RootStackParamList } from '../navigation/StackNavigator';
@@ -10,7 +10,7 @@ import { fetchFeeds } from '../services/utils';
 
 // Define the props for the HomeScreen component
 type Props = {
-  navigation: StackNavigationProp<RootStackParamList, "Home">;
+  navigation: NativeStackNavigationProp<RootStackParamList, "Home">;
   route: RouteProp<RootStackParamList, "Home">;
 };
 

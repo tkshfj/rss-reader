@@ -1,6 +1,15 @@
-// articleService.ts — Business logic extracted from ArticleList component
+// articleService.ts — Business logic for articles and feeds
 import { supabase } from './supabase';
 import Parser from 'react-native-rss-parser';
+
+// Shared Feed type used across components
+export type Feed = {
+    id: string;
+    user_id: string;
+    title: string;
+    url: string;
+    last_updated?: string;
+};
 
 // Shared Article type used across components
 export type Article = {
@@ -192,4 +201,104 @@ export const deleteFeed = async (feedId: string, userId: string): Promise<boolea
         return false;
     }
     return true;
+};
+
+// Bookmark operations
+
+export const getBookmarkStatus = async (articleId: string): Promise<boolean> => {
+    const { data, error } = await supabase
+        .from('articles')
+        .select('bookmarked')
+        .eq('id', articleId)
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data?.bookmarked ?? false;
+};
+
+export const setBookmarkStatus = async (articleId: string, bookmarked: boolean): Promise<void> => {
+    const { error } = await supabase
+        .from('articles')
+        .update({ bookmarked })
+        .eq('id', articleId);
+
+    if (error) throw new Error(error.message);
+};
+
+// Fetch bookmarked articles for a user
+export const fetchBookmarkedArticles = async (userId: string): Promise<Article[]> => {
+    const { data, error } = await supabase
+        .from('articles')
+        .select(`
+            id, user_id, feed_id, title, link, summary, content, content_html, image, media_image,
+            author, published, identifier_type, bookmarked, fetched_at
+        `)
+        .eq('user_id', userId)
+        .eq('bookmarked', true)
+        .order('fetched_at', { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+};
+
+// Fetch all articles for a user (full fields, for Zustand store)
+export const fetchAllArticles = async (userId: string): Promise<Article[]> => {
+    const { data, error } = await supabase
+        .from('articles')
+        .select(`
+            id, user_id, feed_id, title, link, summary, content, content_html, image, media_image,
+            author, published, identifier_type, bookmarked, fetched_at
+        `)
+        .eq('user_id', userId)
+        .order('published', { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+};
+
+// Fetch all feeds for a user (full details)
+export const fetchUserFeeds = async (userId: string): Promise<Feed[]> => {
+    const { data, error } = await supabase
+        .from('feeds')
+        .select('*')
+        .eq('user_id', userId);
+
+    if (error) throw new Error(error.message);
+    return data || [];
+};
+
+// Check if a feed URL already exists for a user
+export const checkFeedExists = async (userId: string, url: string): Promise<boolean> => {
+    const { data, error } = await supabase
+        .from('feeds')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('url', url)
+        .single();
+
+    if (error && error.code !== 'PGRST116') throw new Error(error.message);
+    return !!data;
+};
+
+// Add a new feed for a user
+export const addFeed = async (
+    userId: string,
+    title: string,
+    url: string,
+): Promise<{ success: boolean; data?: any; message?: string }> => {
+    try {
+        const exists = await checkFeedExists(userId, url);
+        if (exists) return { success: false, message: "This feed is already added." };
+
+        const { data, error } = await supabase
+            .from('feeds')
+            .insert([{ user_id: userId, title, url }])
+            .select();
+
+        if (error) throw new Error(error.message);
+        return { success: true, data: data?.[0] };
+    } catch (err) {
+        console.error("Error adding feed:", err);
+        return { success: false, message: err instanceof Error ? err.message : "An unknown error occurred" };
+    }
 };

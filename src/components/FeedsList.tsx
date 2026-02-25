@@ -1,54 +1,16 @@
 // FeedsList.tsx
 import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, ActivityIndicator, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/StackNavigator';
 import { useFocusEffect } from '@react-navigation/native';
-import { supabase } from '../services/supabase';
-import { Article } from '../services/articleService';
+import { Feed, Article, fetchUserFeeds, fetchAllArticles } from '../services/articleService';
 import { useFeedStore } from '../services/feedStore';
-
-// Define the Feed type
-type Feed = {
-    id: string;
-    user_id: string;
-    title: string;
-    url: string;
-};
 
 // Define the props for the FeedsList component
 type FeedsListProps = {
-    navigation: StackNavigationProp<RootStackParamList, 'FeedsList'>;
+    navigation: NativeStackNavigationProp<RootStackParamList, 'FeedsList'>;
     route: { params: { userId: string } };
-};
-
-// Fetch feeds from Supabase
-const fetchFeedsFromSupabase = async (userId: string) => {
-    const { data, error } = await supabase
-        .from('feeds')
-        .select('*')
-        .eq('user_id', userId);
-
-    if (error) {
-        console.error('Error fetching feeds:', error.message);
-        return [];
-    }
-    return data || [];
-};
-
-// Fetch articles from Supabase (select only fields needed for the feeds list)
-const fetchArticlesFromSupabase = async (userId: string) => {
-    const { data, error } = await supabase
-        .from('articles')
-        .select('id, user_id, feed_id, title, link, image, author, published, bookmarked, fetched_at')
-        .eq('user_id', userId)
-        .order('published', { ascending: false });
-
-    if (error) {
-        console.error('Error fetching articles:', error.message);
-        return [];
-    }
-    return data || [];
 };
 
 // Memoized Feed List Item Component
@@ -69,9 +31,14 @@ const FeedsList: React.FC<FeedsListProps> = ({ navigation, route }) => {
     // Fetch feeds only when userId changes
     const fetchFeeds = useCallback(async () => {
         setLoading(true);
-        const fetchedFeeds = await fetchFeedsFromSupabase(userId);
-        setFeeds(fetchedFeeds);
-        setLoading(false);
+        try {
+            const fetchedFeeds = await fetchUserFeeds(userId);
+            setFeeds(fetchedFeeds);
+        } catch (error) {
+            console.error('Error fetching feeds:', error);
+        } finally {
+            setLoading(false);
+        }
     }, [userId]);
 
     // Handle feed item press
@@ -93,7 +60,7 @@ const FeedsList: React.FC<FeedsListProps> = ({ navigation, route }) => {
         }
 
         lastFetchTimeRef.current = now;
-        const newArticles = await fetchArticlesFromSupabase(userId);
+        const newArticles = await fetchAllArticles(userId);
 
         if (newArticles.length > 0) {
             setArticles((prevArticles) => {

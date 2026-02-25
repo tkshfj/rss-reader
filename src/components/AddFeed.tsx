@@ -2,10 +2,10 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, Keyboard, TextInput, Button, Alert, ActivityIndicator, StyleSheet } from 'react-native';
 import RSSParser from 'react-native-rss-parser';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/StackNavigator';
-import { supabase } from '../services/supabase';
+import { addFeed } from '../services/articleService';
 
 // Props for the AddFeedForm component
 type AddFeedFormProps = {
@@ -41,7 +41,7 @@ const AddFeedForm = ({ feedUrl, setFeedUrl, addingFeed, handleAddFeed, textInput
 
 // Define props for the AddFeed component
 type Props = {
-    navigation: StackNavigationProp<RootStackParamList, 'AddFeed'>;
+    navigation: NativeStackNavigationProp<RootStackParamList, 'AddFeed'>;
     route: RouteProp<RootStackParamList, 'AddFeed'>;
 };
 
@@ -66,44 +66,6 @@ const AddFeed: React.FC<Props> = ({ navigation, route }) => {
             return null;
         } finally {
             clearTimeout(timeoutId);
-        }
-    };
-
-    // Function to add the parsed feed to Supabase
-    const addFeedToSupabase = async (title: string, url: string) => {
-        if (!userId) {
-            return { success: false, message: "User ID is missing. Cannot add feed." };
-        }
-
-        try {
-            // Check if feed already exists for the user
-            const { data: existingFeed, error: checkError } = await supabase
-                .from('feeds')
-                .select('id')
-                .eq('user_id', userId)
-                .eq('url', url)
-                .single();
-
-            if (checkError && checkError.code !== 'PGRST116') {
-                throw new Error(checkError.message);
-            }
-
-            if (existingFeed) {
-                return { success: false, message: "This feed is already added." };
-            }
-
-            // Insert new feed
-            const { data, error } = await supabase
-                .from('feeds')
-                .insert([{ user_id: userId, title, url }])
-                .select();
-
-            if (error) throw new Error(error.message);
-
-            return { success: true, data: data?.[0] };
-        } catch (err) {
-            console.error("Error adding feed:", err);
-            return { success: false, message: err instanceof Error ? err.message : "An unknown error occurred" };
         }
     };
 
@@ -133,7 +95,11 @@ const AddFeed: React.FC<Props> = ({ navigation, route }) => {
                 return;
             }
 
-            const result = await addFeedToSupabase(parsedFeed.title, feedUrl);
+            if (!userId) {
+                Alert.alert("Error", "User ID is missing. Cannot add feed.");
+                return;
+            }
+            const result = await addFeed(userId, parsedFeed.title, feedUrl);
             if (result.success) {
                 textInputRef.current?.clear();
                 setFeedUrl("");

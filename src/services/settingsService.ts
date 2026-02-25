@@ -56,18 +56,21 @@ export const updateUserSettings = async (userId: string, newSettings: Partial<Us
             return;
         }
 
+        const allowedKeys = [
+            'dark_mode', 'auto_theme', 'font_size', 'line_spacing',
+            'notifications', 'max_articles_per_feed', 'retention_days',
+        ] as const;
+
+        const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+        for (const key of allowedKeys) {
+            if (newSettings[key] !== undefined) {
+                updates[key] = newSettings[key];
+            }
+        }
+
         const { error } = await supabase
             .from('users')
-            .update({
-                dark_mode: newSettings.dark_mode,
-                auto_theme: newSettings.auto_theme,
-                font_size: newSettings.font_size,
-                line_spacing: newSettings.line_spacing,
-                notifications: newSettings.notifications,
-                max_articles_per_feed: newSettings.max_articles_per_feed,
-                retention_days: newSettings.retention_days,
-                updated_at: new Date().toISOString(),
-            })
+            .update(updates)
             .eq('id', userId);
 
         if (error) {

@@ -1,38 +1,15 @@
 // Bookmarks.tsx
 import React, { useState, useCallback } from 'react';
 import { View, Text, ActivityIndicator, FlatList, TouchableOpacity, Image, StyleSheet } from 'react-native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/StackNavigator';
-import { supabase } from '../services/supabase';
-import { Article } from '../services/articleService';
+import { Article, fetchBookmarkedArticles } from '../services/articleService';
 
 // Define the props for the Bookmarks component
 type BookmarksProps = {
-    navigation: StackNavigationProp<RootStackParamList, 'Bookmarks'>;
+    navigation: NativeStackNavigationProp<RootStackParamList, 'Bookmarks'>;
     route: { params: { userId: string } };
-};
-
-// Fetch bookmarked articles from Supabase
-export const fetchBookmarks = async (userId: string | undefined): Promise<{ data: Article[]; error?: string }> => {
-    if (!userId) {
-        return { data: [], error: "User ID is undefined." };
-    }
-
-    const { data, error } = await supabase
-        .from('articles')
-        .select(`
-            id, user_id, feed_id, title, link, summary, content, content_html, image, media_image,
-            author, published, identifier_type, bookmarked, fetched_at
-        `)
-        .eq('user_id', userId)
-        .eq('bookmarked', true)
-        .order('fetched_at', { ascending: false });
-
-    if (error) {
-        return { data: [], error: error.message };
-    }
-    return { data: data || [] };
 };
 
 // Bookmarks component to display the list of bookmarked articles
@@ -55,11 +32,17 @@ const Bookmarks: React.FC<BookmarksProps> = ({ navigation, route }) => {
             const fetchData = async () => {
                 setLoading(true);
                 setError(null);
-                const { data, error } = await fetchBookmarks(userId);
-                if (!cancelled) {
-                    if (error) setError(error);
-                    setArticles(data);
-                    setLoading(false);
+                try {
+                    const data = await fetchBookmarkedArticles(userId);
+                    if (!cancelled) {
+                        setArticles(data);
+                    }
+                } catch (err) {
+                    if (!cancelled) {
+                        setError(err instanceof Error ? err.message : "Failed to fetch bookmarks.");
+                    }
+                } finally {
+                    if (!cancelled) setLoading(false);
                 }
             };
 

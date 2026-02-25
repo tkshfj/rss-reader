@@ -1,12 +1,13 @@
 // ArticleDetail.tsx
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, Image, StyleSheet, TouchableOpacity, ActivityIndicator, Linking, useColorScheme, Alert } from 'react-native';
 import { RouteProp } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/StackNavigator';
 import RenderHTML from 'react-native-render-html';
 import { useWindowDimensions } from 'react-native';
-import { supabase } from '../services/supabase';
+import { getBookmarkStatus, setBookmarkStatus } from '../services/articleService';
+import { getUserSettings } from '../services/settingsService';
 import { getRelativeTime } from '../services/utils';
 
 // Standard HTML tags for filtering out custom/unknown tags from RSS content
@@ -29,7 +30,7 @@ const extractCustomTags = (html: string): string[] => {
 
 // Define the types for the ArticleDetail component
 type ArticleDetailRouteProp = RouteProp<RootStackParamList, 'ArticleDetail'>;
-type ArticleDetailNavigationProp = StackNavigationProp<RootStackParamList, 'ArticleDetail'>;
+type ArticleDetailNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ArticleDetail'>;
 
 type Props = {
   route: ArticleDetailRouteProp;
@@ -40,7 +41,7 @@ type Props = {
 const ArticleDetail: React.FC<Props> = ({ route, navigation }) => {
   const { article, userId } = route.params;
   const { width } = useWindowDimensions();
-  const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
+  const [isBookmarked, setIsBookmarked] = useState<boolean>(article.bookmarked ?? false);
   const systemTheme = useColorScheme();
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState({
@@ -53,62 +54,40 @@ const ArticleDetail: React.FC<Props> = ({ route, navigation }) => {
   // Derive feed title from the article object (already joined by fetchArticles)
   const feedTitle = article.feed_title ?? article.feeds?.title ?? 'Unknown Feed';
 
-  // Check if the article is bookmarked by the user
-  const checkIfBookmarked = useCallback(async () => {
-    if (!article?.id) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('articles')
-        .select('bookmarked')
-        .eq('id', article.id)
-        .single();
-
-      if (error) throw new Error(error.message);
-
-      setIsBookmarked(data?.bookmarked ?? false);
-    } catch (error) {
-      console.error('Error checking bookmark status:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [article?.id]);
-
-  // Fetch user settings from Supabase
-  const fetchUserSettings = useCallback(async () => {
-    if (!userId) return;
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('auto_theme, dark_mode, font_size, line_spacing')
-        .eq('id', userId)
-        .single();
-
-      if (error) throw new Error(error.message);
-
-      if (data) {
-        setSettings({
-          auto_theme: data.auto_theme ?? true,
-          dark_mode: data.dark_mode ?? false,
-          font_size: data.font_size ?? 16,
-          line_spacing: data.line_spacing ?? 1.5,
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching user settings:', error);
-    }
-  }, [userId]);
-
   // Fetch bookmark status and user settings when the article changes
   useEffect(() => {
-    if (article) {
-      checkIfBookmarked();
-      fetchUserSettings();
-    }
-  }, [article, checkIfBookmarked, fetchUserSettings]);
+    if (!article) return;
+
+    let cancelled = false;
+
+    const loadData = async () => {
+      try {
+        if (article.id) {
+          const bookmarked = await getBookmarkStatus(article.id);
+          if (!cancelled) setIsBookmarked(bookmarked);
+        }
+
+        if (userId) {
+          const data = await getUserSettings(userId);
+          if (!cancelled && data) {
+            setSettings({
+              auto_theme: data.auto_theme ?? true,
+              dark_mode: data.dark_mode ?? false,
+              font_size: data.font_size ?? 16,
+              line_spacing: data.line_spacing ?? 1.5,
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error loading article detail data:', error);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    loadData();
+    return () => { cancelled = true; };
+  }, [article, userId]);
 
   // Toggle the bookmark status of the article
   const toggleBookmark = async () => {
@@ -121,18 +100,10 @@ const ArticleDetail: React.FC<Props> = ({ route, navigation }) => {
     setIsBookmarked(newStatus); // Update UI immediately
 
     try {
-        const { error } = await supabase
-            .from('articles')
-            .update({ bookmarked: newStatus })
-            .eq('id', article.id);
-
-        if (error) {
-            console.error('Error toggling bookmark:', error);
-            setIsBookmarked(!newStatus); // Revert if update fails
-        }
+        await setBookmarkStatus(article.id, newStatus);
     } catch (error) {
         console.error('Error toggling bookmark:', error);
-        setIsBookmarked(!newStatus); // Revert if there's an error
+        setIsBookmarked(!newStatus); // Revert on failure
     }
   };
 

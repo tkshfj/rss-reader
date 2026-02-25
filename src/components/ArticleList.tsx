@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { View, Text, FlatList, TextInput, RefreshControl, TouchableOpacity, Image, ActivityIndicator, StyleSheet, Modal, Button, Alert } from 'react-native';
 import { RouteProp } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/StackNavigator';
 import { getRelativeTime } from '../services/utils';
 import {
@@ -19,7 +19,7 @@ import {
 
 // Define the types for the ArticleList component
 type ArticleListScreenRouteProp = RouteProp<RootStackParamList, 'ArticleList'>;
-type ArticleListScreenNavigationProp = StackNavigationProp<RootStackParamList, 'ArticleList'>;
+type ArticleListScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ArticleList'>;
 type Props = {
     route: ArticleListScreenRouteProp;
     navigation: ArticleListScreenNavigationProp;

@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT UNIQUE NOT NULL,  -- User's email (must be unique)
     dark_mode BOOLEAN DEFAULT FALSE,  -- Preference for dark mode (default: off)
     auto_theme BOOLEAN DEFAULT TRUE,  -- Automatically adjust theme (default: on)
-    font_size INTEGER DEFAULT 12,  -- Preferred font size (default: 12)
+    font_size INTEGER DEFAULT 16,  -- Preferred font size (default: 16)
     line_spacing REAL DEFAULT 1.5,  -- Preferred line spacing (default: 1.5)
     notifications BOOLEAN DEFAULT FALSE,  -- Whether notifications are enabled
     max_articles_per_feed INTEGER DEFAULT 50,  -- Maximum articles to display per feed
@@ -48,3 +48,21 @@ CREATE TABLE IF NOT EXISTS articles (
 
 -- Set default UUID generation for articles.id to ensure unique IDs
 ALTER TABLE articles ALTER COLUMN id SET DEFAULT gen_random_uuid();
+
+-- Row-Level Security (RLS) policies
+-- Users can only access their own data
+
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+CREATE POLICY users_own_data ON users
+    USING (id = auth.uid())
+    WITH CHECK (id = auth.uid());
+
+ALTER TABLE feeds ENABLE ROW LEVEL SECURITY;
+CREATE POLICY feeds_own_data ON feeds
+    USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
+
+ALTER TABLE articles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY articles_own_data ON articles
+    USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());

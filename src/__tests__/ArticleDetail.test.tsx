@@ -2,15 +2,30 @@ import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import ArticleDetail from '../components/ArticleDetail';
 import { Linking, ActivityIndicator } from 'react-native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/StackNavigator';
 import { RouteProp } from '@react-navigation/native';
+
+// Mock service functions used by ArticleDetail
+jest.mock('../services/articleService', () => ({
+  getBookmarkStatus: jest.fn().mockResolvedValue(false),
+  setBookmarkStatus: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('../services/settingsService', () => ({
+  getUserSettings: jest.fn().mockResolvedValue({
+    auto_theme: true,
+    dark_mode: false,
+    font_size: 16,
+    line_spacing: 1.5,
+  }),
+}));
 
 // Mock React Navigation
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
 
-const createMockNavigation = (): StackNavigationProp<RootStackParamList, 'ArticleDetail'> =>
+const createMockNavigation = (): NativeStackNavigationProp<RootStackParamList, 'ArticleDetail'> =>
   ({
     navigate: mockNavigate,
     goBack: mockGoBack,
@@ -31,7 +46,7 @@ const createMockNavigation = (): StackNavigationProp<RootStackParamList, 'Articl
     navigateDeprecated: jest.fn(),
     preload: jest.fn(),
     setStateForNextRouteNamesChange: jest.fn(),
-  } as unknown as StackNavigationProp<RootStackParamList, 'ArticleDetail'>);
+  } as unknown as NativeStackNavigationProp<RootStackParamList, 'ArticleDetail'>);
 
 const mockRoute: RouteProp<RootStackParamList, 'ArticleDetail'> = {
   key: 'ArticleDetail-key',
@@ -52,19 +67,8 @@ const mockRoute: RouteProp<RootStackParamList, 'ArticleDetail'> = {
   },
 };
 
-// Mock Supabase API Calls
-jest.mock('../services/supabase', () => ({
-  supabase: {
-    from: jest.fn().mockReturnThis(),
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockReturnThis(),
-    single: jest.fn().mockResolvedValue({ data: { title: 'Test Feed' }, error: null }),
-    update: jest.fn().mockReturnThis(),
-  },
-}));
-
 describe('ArticleDetail Component', () => {
-  let navigation: StackNavigationProp<RootStackParamList, 'ArticleDetail'>;
+  let navigation: NativeStackNavigationProp<RootStackParamList, 'ArticleDetail'>;
 
   beforeEach(() => {
     jest.clearAllMocks();

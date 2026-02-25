@@ -2,14 +2,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, Button, Alert, StyleSheet } from 'react-native';
 import Slider from '@react-native-community/slider';
-import { StackScreenProps } from '@react-navigation/stack';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { deleteOldArticles } from '../services/utils';
 import { RootStackParamList } from '../navigation/StackNavigator';
 import { signOut } from "../services/auth";
 import { getUserSettings, updateUserSettings, DEFAULT_SETTINGS } from '../services/settingsService';
 
 // Define the types for the Settings component
-type Props = StackScreenProps<RootStackParamList, 'Settings'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
 // Settings component to display and update user settings
 const Settings: React.FC<Props> = ({ route }) => {
