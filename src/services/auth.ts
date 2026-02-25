@@ -1,4 +1,5 @@
 // auth.ts
+import { User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -138,7 +139,7 @@ export async function insertUserIfNotExists(userId: string, email: string) {
 }
 
 // Get Auth State
-export function onAuthStateChange(callback: (user: any) => void) {
+export function onAuthStateChange(callback: (user: User | null) => void) {
   return supabase.auth.onAuthStateChange((_event, session) => {
     callback(session?.user ?? null);
   });

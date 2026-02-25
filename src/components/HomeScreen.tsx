@@ -6,7 +6,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Cell, TableView } from "react-native-tableview-simple";
 import { RootStackParamList } from '../navigation/StackNavigator';
-import { fetchFeeds } from '../services/utils';
+import { fetchUserFeeds } from '../services/articleService';
 
 // Define the props for the HomeScreen component
 type Props = {
@@ -34,7 +34,7 @@ const HomeScreen: React.FC<Props> = ({ navigation, route }) => {
       const loadFeeds = async () => {
         setLoading(true);
         try {
-          const fetchedFeeds = await fetchFeeds(userId);
+          const fetchedFeeds = await fetchUserFeeds(userId);
           if (!cancelled) setFeeds(fetchedFeeds);
         } catch (err) {
           console.error("Error fetching feeds:", err);

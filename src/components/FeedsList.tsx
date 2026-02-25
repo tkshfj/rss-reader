@@ -1,11 +1,10 @@
 // FeedsList.tsx
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, ActivityIndicator, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/StackNavigator';
 import { useFocusEffect } from '@react-navigation/native';
-import { Feed, Article, fetchUserFeeds, fetchAllArticles } from '../services/articleService';
-import { useFeedStore } from '../services/feedStore';
+import { Feed, fetchUserFeeds } from '../services/articleService';
 
 // Define the props for the FeedsList component
 type FeedsListProps = {
@@ -25,8 +24,6 @@ const FeedsList: React.FC<FeedsListProps> = ({ navigation, route }) => {
     const userId = route.params.userId;
     const [feeds, setFeeds] = useState<Feed[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
-    const { setArticles } = useFeedStore();
-    const lastFetchTimeRef = useRef<number | null>(null);
 
     // Fetch feeds only when userId changes
     const fetchFeeds = useCallback(async () => {
@@ -50,35 +47,11 @@ const FeedsList: React.FC<FeedsListProps> = ({ navigation, route }) => {
         });
     }, [navigation]);
 
-    // Fetch articles, throttled to once per 10 minutes
-    const fetchNewArticles = useCallback(async () => {
-        const now = Date.now();
-
-        // Prevent unnecessary fetches if called within 10 minutes
-        if (lastFetchTimeRef.current && (now - lastFetchTimeRef.current < 10 * 60 * 1000)) {
-            return;
-        }
-
-        lastFetchTimeRef.current = now;
-        const newArticles = await fetchAllArticles(userId);
-
-        if (newArticles.length > 0) {
-            setArticles((prevArticles) => {
-                const uniqueArticles = new Map<string, Article>();
-                [...newArticles, ...prevArticles].forEach(article => {
-                    uniqueArticles.set(article.id, article);
-                });
-                return Array.from(uniqueArticles.values());
-            });
-        }
-    }, [setArticles, userId]);
-
-    // Refresh feeds and articles when the screen is focused
+    // Refresh feeds when the screen is focused
     useFocusEffect(
         useCallback(() => {
             fetchFeeds();
-            fetchNewArticles();
-        }, [fetchFeeds, fetchNewArticles])
+        }, [fetchFeeds])
     );
 
     return (

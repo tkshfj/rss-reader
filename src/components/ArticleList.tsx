@@ -37,6 +37,7 @@ const ArticleList: React.FC<Props> = ({ route, navigation }) => {
     const [newTitle, setNewTitle] = useState<string>(feedTitle);
     const [updatedTitle, setUpdatedTitle] = useState<string>(feedTitle);
     const rssFetchAttempted = useRef(false);
+    const maxArticlesRef = useRef<number | null>(null);
 
     // Load articles from the database
     const loadArticles = useCallback(async () => {
@@ -44,8 +45,10 @@ const ArticleList: React.FC<Props> = ({ route, navigation }) => {
         try {
             if (!userId) throw new Error('User not authenticated');
 
-            const maxArticles = await getMaxArticlesPerFeed(userId);
-            const formattedArticles = await fetchArticles(userId, feedId, maxArticles);
+            if (maxArticlesRef.current === null) {
+                maxArticlesRef.current = await getMaxArticlesPerFeed(userId);
+            }
+            const formattedArticles = await fetchArticles(userId, feedId, maxArticlesRef.current);
             setArticles(formattedArticles);
             setFilteredArticles(formattedArticles);
         } catch (error: any) {
@@ -92,19 +95,23 @@ const ArticleList: React.FC<Props> = ({ route, navigation }) => {
         init();
     }, [feedId, userId]);
 
-    // Filter articles by search query
-    const filterArticles = useCallback((query: string) => {
-        setSearchQuery(query);
-        if (!query.trim()) {
+    // Re-apply search filter when articles change (e.g. after refresh)
+    useEffect(() => {
+        if (!searchQuery.trim()) {
             setFilteredArticles(articles);
         } else {
-            const lowerQuery = query.toLowerCase();
+            const lowerQuery = searchQuery.toLowerCase();
             setFilteredArticles(articles.filter(article =>
                 article.title.toLowerCase().includes(lowerQuery) ||
                 (article.summary || '').toLowerCase().includes(lowerQuery)
             ));
         }
-    }, [articles]);
+    }, [articles, searchQuery]);
+
+    // Filter articles by search query
+    const filterArticles = useCallback((query: string) => {
+        setSearchQuery(query);
+    }, []);
 
     const handleRenameFeed = async () => {
         if (!newTitle.trim()) return;

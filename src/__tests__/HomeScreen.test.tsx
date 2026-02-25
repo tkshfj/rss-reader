@@ -4,7 +4,7 @@ import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import HomeScreen from '../components/HomeScreen';
 import { NavigationContainer } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
-import { fetchFeeds } from '../services/utils';
+import { fetchUserFeeds } from '../services/articleService';
 
 // Mock Navigation — useFocusEffect defers callback via useEffect (like the real implementation)
 jest.mock('@react-navigation/native', () => {
@@ -18,9 +18,9 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
-// Mock fetchFeeds API
-jest.mock('../services/utils', () => ({
-  fetchFeeds: jest.fn(),
+// Mock articleService
+jest.mock('../services/articleService', () => ({
+  fetchUserFeeds: jest.fn(),
 }));
 
 // Mock navigation and route props
@@ -50,7 +50,7 @@ describe('HomeScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Default fetchFeeds to resolve with empty array
-    (fetchFeeds as jest.Mock).mockResolvedValue([]);
+    (fetchUserFeeds as jest.Mock).mockResolvedValue([]);
   });
 
   const renderHomeScreen = async () => {
@@ -73,7 +73,7 @@ describe('HomeScreen', () => {
   });
 
   it('displays loading indicator while fetching feeds', async () => {
-    (fetchFeeds as jest.Mock).mockReturnValue(new Promise(() => {}));
+    (fetchUserFeeds as jest.Mock).mockReturnValue(new Promise(() => {}));
     const { getByTestId } = await renderHomeScreen();
     expect(getByTestId('loading-indicator')).toBeTruthy();
   });

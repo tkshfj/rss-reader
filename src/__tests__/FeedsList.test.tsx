@@ -3,22 +3,13 @@ import React from 'react';
 import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import FeedsList from '../components/FeedsList';
-import { supabase } from '../services/supabase';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/StackNavigator';
-import { useFeedStore } from '../services/feedStore';
-import { act } from '@testing-library/react-native';
 
-// Mock Supabase calls
-jest.mock('../services/supabase', () => ({
-    supabase: {
-        from: jest.fn(() => ({
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            order: jest.fn().mockReturnThis(),
-            then: jest.fn(),
-        })),
-    },
+// Mock articleService
+const mockFetchUserFeeds = jest.fn();
+jest.mock('../services/articleService', () => ({
+    fetchUserFeeds: (...args: any[]) => mockFetchUserFeeds(...args),
 }));
 
 // Mock Navigation Prop
@@ -35,26 +26,7 @@ const mockNavigation = {
     setState: jest.fn(),
     addListener: jest.fn(),
     removeListener: jest.fn(),
-} as unknown as StackNavigationProp<RootStackParamList, 'FeedsList'>;
-
-// Mock Zustand store
-jest.mock('../services/feedStore', () => {
-    const originalModule = jest.requireActual('../services/feedStore');
-    return {
-        ...originalModule,
-        useFeedStore: jest.fn(),
-        __esModule: true, // Ensure the module is treated as an ES module
-    };
-});
-
-beforeEach(() => {
-    act(() => {
-        (useFeedStore as unknown as jest.Mock).mockReturnValue({
-            articles: [],
-            setArticles: jest.fn(),
-        });
-    });
-});
+} as unknown as NativeStackNavigationProp<RootStackParamList, 'FeedsList'>;
 
 describe('FeedsList Component', () => {
     const mockUserId = 'user-123';
@@ -65,9 +37,11 @@ describe('FeedsList Component', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        mockFetchUserFeeds.mockResolvedValue([]);
     });
 
     test('renders loading indicator initially', async () => {
+        mockFetchUserFeeds.mockReturnValue(new Promise(() => {}));
         const { getByTestId } = render(
             <NavigationContainer>
                 <FeedsList navigation={mockNavigation} route={{ params: { userId: mockUserId } }} />
@@ -76,12 +50,8 @@ describe('FeedsList Component', () => {
         expect(getByTestId('loading-indicator')).toBeTruthy();
     });
 
-    test('renders feeds after fetching from Supabase', async () => {
-        (supabase.from as jest.Mock).mockReturnValueOnce({
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            then: jest.fn((callback) => callback({ data: mockFeeds, error: null })),
-        });
+    test('renders feeds after fetching', async () => {
+        mockFetchUserFeeds.mockResolvedValue(mockFeeds);
 
         const { getByText, queryByTestId } = render(
             <NavigationContainer>
@@ -89,22 +59,16 @@ describe('FeedsList Component', () => {
             </NavigationContainer>
         );
 
-        // Wait for async state update
         await waitFor(() => {
             expect(getByText('Tech News')).toBeTruthy();
             expect(getByText('Sports Update')).toBeTruthy();
         });
 
-        // Ensure loading indicator disappears
         expect(queryByTestId('loading-indicator')).toBeNull();
     });
 
     test('handles empty feeds list gracefully', async () => {
-        (supabase.from as jest.Mock).mockReturnValueOnce({
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            then: jest.fn((callback) => callback({ data: [], error: null })),
-        });
+        mockFetchUserFeeds.mockResolvedValue([]);
 
         const { getByText, queryByTestId } = render(
             <NavigationContainer>
@@ -120,11 +84,7 @@ describe('FeedsList Component', () => {
     });
 
     test('navigates to ArticleList when a feed is selected', async () => {
-        (supabase.from as jest.Mock).mockReturnValueOnce({
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            then: jest.fn((callback) => callback({ data: mockFeeds, error: null })),
-        });
+        mockFetchUserFeeds.mockResolvedValue(mockFeeds);
 
         const { getByText } = render(
             <NavigationContainer>
@@ -140,84 +100,6 @@ describe('FeedsList Component', () => {
             feedId: '1',
             feedTitle: 'Tech News',
             userId: mockUserId,
-        });
-    });
-
-    test('fetches both feeds and articles on initial render', async () => {
-        const setArticlesMock = jest.fn();
-
-        (useFeedStore as unknown as jest.Mock).mockReturnValue({
-            articles: [],
-            setArticles: setArticlesMock,
-        });
-
-        const makeMock = (data: any) => ({
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            order: jest.fn().mockReturnThis(),
-            then: jest.fn((callback: any) => callback({ data, error: null })),
-        });
-
-        // Provide mocks for initial render: feeds query + articles query
-        (supabase.from as jest.Mock)
-            .mockReturnValueOnce(makeMock([]))   // feeds
-            .mockReturnValueOnce(makeMock([]));   // articles
-
-        const { getByText } = render(
-            <NavigationContainer>
-                <FeedsList navigation={mockNavigation} route={{ params: { userId: mockUserId } }} />
-            </NavigationContainer>
-        );
-
-        await waitFor(() => expect(getByText('No feeds added yet.')).toBeTruthy());
-
-        // Both feeds and articles queries should have been made
-        expect((supabase.from as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(2);
-    });
-
-    test('fetches and stores new articles in Zustand', async () => {
-        // Access the real Zustand store and delegate mock to it so the
-        // component interacts with real state (previously the component
-        // captured the real store via closure when it lived in the same file).
-        const realModule = jest.requireActual('../services/feedStore') as any;
-        const realStore = realModule.useFeedStore;
-
-        // Reset real store state before test
-        realStore.setState({ articles: [] });
-
-        // Delegate the mock to the real store hook so the component
-        // subscribes to and mutates real Zustand state
-        (useFeedStore as unknown as jest.Mock).mockImplementation(
-            (...args: any[]) => realStore(...args)
-        );
-
-        const mockArticles = [
-            { id: 'a1', feed_id: '1', title: 'AI Breakthrough', link: 'https://tech.com/ai', published: '2025-03-09' },
-            { id: 'a2', feed_id: '2', title: 'Olympics 2025', link: 'https://sports.com/olympics', published: '2025-03-08' },
-        ];
-
-        // Provide mocks for all supabase.from() calls (order may vary between
-        // useFocusEffect and useEffect). Each mock supports all chain methods.
-        const makeArticlesMock = () => ({
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            order: jest.fn().mockReturnThis(),
-            then: jest.fn((callback: any) => callback({ data: mockArticles, error: null })),
-        });
-        (supabase.from as jest.Mock)
-            .mockReturnValueOnce(makeArticlesMock())
-            .mockReturnValueOnce(makeArticlesMock())
-            .mockReturnValueOnce(makeArticlesMock());
-
-        render(
-            <NavigationContainer>
-                <FeedsList navigation={mockNavigation} route={{ params: { userId: mockUserId } }} />
-            </NavigationContainer>
-        );
-
-        await waitFor(() => {
-            const state = realStore.getState();
-            expect(state.articles.length).toBeGreaterThan(0);
         });
     });
 });
